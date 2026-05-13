@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1a1a18">
+<title>Betrieb & Projekte — Kanban</title>
+<link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;Betrieb Kanban&quot;,&quot;short_name&quot;:&quot;Kanban&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;#1a1a18&quot;,&quot;theme_color&quot;:&quot;#1a1a18&quot;}">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
+
+:root {
+  --bg:       #1a1a18;
+  --bg2:      #222220;
+  --bg3:      #2a2a27;
+  --bg4:      #333330;
+  --line:     rgba(255,255,255,0.07);
+  --line2:    rgba(255,255,255,0.13);
+  --text:     #e8e6df;
+  --text2:    #9a9890;
+  --text3:    #5a5855;
+  --amber:    #d4870a;
+  --amber-bg: rgba(212,135,10,0.12);
+  --red:      #c94040;
+  --red-bg:   rgba(201,64,64,0.12);
+  --green:    #3a8a5a;
+  --green-bg: rgba(58,138,90,0.1);
+  --blue:     #3a6ea8;
+  --blue-bg:  rgba(58,110,168,0.15);
+  --col-w:    220px;
+  --mono: 'IBM Plex Mono', monospace;
+  --sans: 'IBM Plex Sans', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 400;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 2px; }
+
+/* ── Header ── */
+header {
+  position: sticky; top: 0; z-index: 100;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line2);
+  padding: 0 20px;
+  display: flex; align-items: center; justify-content: space-between;
+  height: 48px;
+}
+.logo {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text2);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.logo span { color: var(--amber); }
+.header-right { display: flex; align-items: center; gap: 8px; }
+.wip-status {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text3);
+  padding: 4px 10px;
+  border: 1px solid var(--line2);
+  border-radius: 2px;
+}
+.wip-status.ok { color: var(--green); border-color: rgba(58,138,90,0.3); }
+.wip-status.warn { color: var(--red); border-color: rgba(201,64,64,0.3); }
+
+btn, button { font-family: var(--sans); cursor: pointer; }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  padding: 5px 12px;
+  border-radius: 2px;
+  border: 1px solid var(--line2);
+  background: transparent;
+  color: var(--text2);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.btn:hover { background: var(--bg3); color: var(--text); border-color: var(--line2); }
+.btn-primary {
+  background: var(--amber);
+  color: #1a1a18;
+  border-color: var(--amber);
+  font-weight: 500;
+}
+.btn-primary:hover { background: #c07a08; border-color: #c07a08; color: #1a1a18; }
+.btn-danger { color: var(--red); border-color: rgba(201,64,64,0.3); }
+.btn-danger:hover { background: var(--red-bg); }
+.btn-success { color: var(--green); border-color: rgba(58,138,90,0.3); }
+.btn-success:hover { background: var(--green-bg); }
+
+/* ── Date bar ── */
+.datebar {
+  padding: 6px 20px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 16px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text3);
+}
+.datebar-item { display: flex; align-items: center; gap: 6px; }
+.datebar-item.red { color: var(--red); }
+.datebar-item.amber { color: var(--amber); }
+
+/* ── Board ── */
+.board-wrap {
+  padding: 16px 20px;
+  overflow-x: auto;
+  min-height: calc(100vh - 96px);
+}
+.board {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  min-width: max-content;
+}
+
+/* ── Column ── */
+.col {
+  width: var(--col-w);
+  flex-shrink: 0;
+  background: var(--bg2);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+}
+.col-head {
+  padding: 10px 12px 9px;
+  border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.col-name {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+}
+.col-count {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text3);
+  background: var(--bg3);
+  padding: 1px 6px;
+  border-radius: 2px;
+}
+.col-count.warn { color: var(--red); background: var(--red-bg); }
+.col-body { padding: 8px; min-height: 200px; }
+
+/* ── Card ── */
+.kcard {
+  background: var(--bg3);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  padding: 10px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  position: relative;
+  overflow: hidden;
+}
+.kcard::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+}
+.kcard.normal::before { background: transparent; }
+.kcard.due-amber::before { background: var(--amber); }
+.kcard.due-red::before { background: var(--red); }
+.kcard:hover { border-color: var(--line2); background: var(--bg4); }
+
+.kcard-title {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1.35;
+  margin-bottom: 5px;
+  padding-left: 4px;
+}
+.kcard.due-red .kcard-title,
+.kcard.due-amber .kcard-title { padding-left: 7px; }
+
+.kcard-next {
+  font-size: 11px;
+  color: var(--text2);
+  line-height: 1.4;
+  padding-left: 4px;
+  margin-bottom: 8px;
+}
+.kcard.due-red .kcard-next,
+.kcard.due-amber .kcard-next { padding-left: 7px; }
+
+.kcard-meta {
+  display: flex; align-items: center; justify-content: space-between;
+  padding-left: 4px;
+}
+.kcard.due-red .kcard-meta,
+.kcard.due-amber .kcard-meta { padding-left: 7px; }
+
+.kcard-area {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text3);
+  background: var(--bg2);
+  padding: 1px 5px;
+  border-radius: 2px;
+  border: 1px solid var(--line);
+}
+.kcard-due {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text3);
+}
+.kcard-due.red { color: var(--red); }
+.kcard-due.amber { color: var(--amber); }
+
+.add-card-btn {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text3);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  padding: 6px 10px;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 2px;
+  display: flex; align-items: center; gap: 5px;
+  transition: color 0.15s, background 0.15s;
+  margin-top: 2px;
+}
+.add-card-btn:hover { color: var(--amber); background: var(--amber-bg); }
+
+/* ── Modal overlay ── */
+.modal-overlay {
+  display: none;
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.7);
+  align-items: center; justify-content: center;
+  padding: 20px;
+}
+.modal-overlay.open { display: flex; }
+
+.modal {
+  background: var(--bg2);
+  border: 1px solid var(--line2);
+  border-radius: 3px;
+  width: 100%;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.modal-head {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.modal-title {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text2);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.modal-body { padding: 16px; }
+.modal-foot {
+  padding: 12px 16px;
+  border-top: 1px solid var(--line);
+  display: flex; justify-content: flex-end; gap: 8px;
+}
+
+/* ── Form fields ── */
+.field { margin-bottom: 12px; }
+.field-label {
+  display: block;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text3);
+  margin-bottom: 4px;
+}
+.field-label .req { color: var(--amber); }
+.field input, .field select, .field textarea {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--line2);
+  border-radius: 2px;
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 12px;
+  padding: 7px 10px;
+  outline: none;
+  transition: border-color 0.15s;
+  -webkit-appearance: none;
+}
+.field input:focus, .field select:focus, .field textarea:focus {
+  border-color: var(--amber);
+}
+.field textarea { min-height: 60px; resize: vertical; }
+.field select { cursor: pointer; }
+.field-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.field-hint { font-size: 10px; color: var(--text3); margin-top: 3px; }
+
+/* ── Drawer ── */
+.drawer-overlay {
+  display: none;
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.6);
+}
+.drawer-overlay.open { display: block; }
+.drawer {
+  position: fixed;
+  top: 0; right: 0; bottom: 0;
+  width: min(520px, 100vw);
+  background: var(--bg2);
+  border-left: 1px solid var(--line2);
+  z-index: 201;
+  display: flex; flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.2s ease;
+  overflow: hidden;
+}
+.drawer.open { transform: translateX(0); }
+
+.drawer-head {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.drawer-head-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1.3;
+  flex: 1;
+}
+.drawer-head-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+.drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.drawer-section { margin-bottom: 20px; }
+.drawer-section-title {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+}
+.drawer-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.dfield { margin-bottom: 0; }
+.dfield-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text3);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 3px;
+}
+.dfield-val {
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.4;
+}
+.dfield-val.red { color: var(--red); }
+.dfield-val.amber { color: var(--amber); }
+
+.next-step-box {
+  background: var(--bg3);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--amber);
+  border-radius: 2px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.log-entry {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.log-entry:last-child { border-bottom: none; }
+.log-date {
+  font-family: var(--mono);
+  color: var(--amber);
+  font-size: 10px;
+  display: block;
+  margin-bottom: 2px;
+}
+.log-text { color: var(--text2); }
+
+.status-badge {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  padding: 2px 7px;
+  border-radius: 2px;
+  text-transform: uppercase;
+}
+.badge-eingang  { background: rgba(90,88,85,0.3); color: var(--text2); }
+.badge-jetzt    { background: var(--blue-bg); color: #6a9ed8; }
+.badge-warten   { background: var(--amber-bg); color: var(--amber); }
+.badge-erledigt { background: var(--green-bg); color: var(--green); }
+.badge-parken   { background: var(--bg4); color: var(--text3); }
+
+.log-add {
+  display: flex; gap: 6px; margin-top: 10px;
+}
+.log-add input {
+  flex: 1;
+  background: var(--bg3);
+  border: 1px solid var(--line2);
+  border-radius: 2px;
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 11px;
+  padding: 5px 8px;
+  outline: none;
+}
+.log-add input:focus { border-color: var(--amber); }
+
+/* ── Confirm dialog ── */
+.confirm-overlay {
+  display: none;
+  position: fixed; inset: 0; z-index: 300;
+  background: rgba(0,0,0,0.8);
+  align-items: center; justify-content: center;
+}
+.confirm-overlay.open { display: flex; }
+.confirm-box {
+  background: var(--bg2);
+  border: 1px solid var(--red);
+  border-radius: 3px;
+  padding: 20px 24px;
+  max-width: 340px;
+  width: 100%;
+}
+.confirm-title {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--red);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.confirm-text { font-size: 12px; color: var(--text2); margin-bottom: 16px; line-height: 1.5; }
+.confirm-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+/* ── Empty state ── */
+.empty {
+  padding: 20px 10px;
+  text-align: center;
+  color: var(--text3);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+
+/* ── Review panel ── */
+.review-overlay {
+  display: none;
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.7);
+  align-items: center; justify-content: center;
+  padding: 20px;
+}
+.review-overlay.open { display: flex; }
+.review-box {
+  background: var(--bg2);
+  border: 1px solid var(--line2);
+  border-radius: 3px;
+  width: 100%;
+  max-width: 560px;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+.review-head {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.review-body { padding: 16px; }
+.review-section { margin-bottom: 16px; }
+.review-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text3);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.review-item {
+  padding: 8px 10px;
+  background: var(--bg3);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  margin-bottom: 4px;
+  font-size: 12px;
+  color: var(--text);
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px;
+}
+.review-item-sub { font-size: 11px; color: var(--text3); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">BETRIEB <span>&amp;</span> PROJEKTE</div>
+  <div class="header-right">
+    <span class="wip-status" id="wipStatus">WIP: — / 3</span>
+    <button class="btn" onclick="openReview()">⬡ Weekly Review</button>
+    <button class="btn btn-primary" onclick="openNewModal()">+ Neuer Vorgang</button>
+  </div>
+</header>
+
+<div class="datebar">
+  <span class="datebar-item" id="datebarToday"></span>
+  <span style="color:var(--line2)">|</span>
+  <span class="datebar-item red" id="datebarOverdue"></span>
+  <span class="datebar-item amber" id="datebarDueSoon"></span>
+  <span class="datebar-item" id="datebarWaiting"></span>
+</div>
+
+<div class="board-wrap">
+  <div class="board" id="board"></div>
+</div>
+
+<!-- ═══ NEW / EDIT MODAL ═══ -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModalIfBg(event)">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title" id="modalTitle">Neuer Vorgang</span>
+      <button class="btn" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label class="field-label">Thema / Titel <span class="req">*</span></label>
+        <input type="text" id="fThema" placeholder="z.B. Druckprüfung Druckluft Süd">
+      </div>
+      <div class="field-row2">
+        <div class="field">
+          <label class="field-label">Bereich / Ort</label>
+          <input type="text" id="fBereich" placeholder="z.B. Energie, Lüftung">
+        </div>
+        <div class="field">
+          <label class="field-label">Status</label>
+          <select id="fStatus">
+            <option value="eingang">Eingang</option>
+            <option value="jetzt">Jetzt</option>
+            <option value="warten">Warten</option>
+            <option value="erledigt">Erledigt</option>
+            <option value="parken">Parken</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">Zeitfokus</label>
+        <select id="fZeitfokus">
+          <option value="Sofort">Sofort</option>
+          <option value="Heute">Heute</option>
+          <option value="Diese Woche" selected>Diese Woche</option>
+          <option value="Terminieren">Terminieren</option>
+          <option value="Kann warten">Kann warten</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label">Nächster Schritt <span class="req">*</span></label>
+        <textarea id="fNaechsterSchritt" placeholder="Beginnt mit Verb — z.B. Angebot anfordern bei Firma XY"></textarea>
+      </div>
+      <div class="field-row2">
+        <div class="field">
+          <label class="field-label">Fällig / Wiedervorlage</label>
+          <input type="date" id="fFaellig">
+        </div>
+        <div class="field">
+          <label class="field-label">Warten auf</label>
+          <input type="text" id="fWartenAuf" placeholder="Person / Stelle">
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">Nachweis / Referenz</label>
+        <input type="text" id="fNachweis" placeholder="Mailbetreff, Ticket, Dateiname — optional">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeModal()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveCard()">Speichern →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ DETAIL DRAWER ═══ -->
+<div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-head">
+    <div class="drawer-head-title" id="drawerTitle"></div>
+    <div class="drawer-head-actions">
+      <button class="btn btn-success" onclick="markErledigt()">✓ Erledigt</button>
+      <button class="btn" onclick="editFromDrawer()">Bearbeiten</button>
+      <button class="btn btn-danger" onclick="confirmDelete()">Löschen</button>
+      <button class="btn" onclick="closeDrawer()">✕</button>
+    </div>
+  </div>
+  <div class="drawer-body" id="drawerBody"></div>
+</div>
+
+<!-- ═══ CONFIRM DELETE ═══ -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-box">
+    <div class="confirm-title">Vorgang löschen?</div>
+    <div class="confirm-text" id="confirmText"></div>
+    <div class="confirm-actions">
+      <button class="btn" onclick="closeConfirm()">Abbrechen</button>
+      <button class="btn btn-danger" onclick="doDelete()">Löschen</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ WEEKLY REVIEW ═══ -->
+<div class="review-overlay" id="reviewOverlay" onclick="closeReviewIfBg(event)">
+  <div class="review-box">
+    <div class="review-head">
+      <span class="modal-title">⬡ Weekly Review</span>
+      <button class="btn" onclick="closeReview()">✕</button>
+    </div>
+    <div class="review-body" id="reviewBody"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════
+const STORE_KEY = 'kanban_betrieb_v1';
+const COLS = [
+  { id: 'eingang',  name: 'Eingang' },
+  { id: 'jetzt',   name: 'Jetzt' },
+  { id: 'warten',  name: 'Warten' },
+  { id: 'erledigt',name: 'Erledigt' },
+  { id: 'parken',  name: 'Parken' },
+];
+
+function loadData() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || []; }
+  catch { return []; }
+}
+function saveData(cards) {
+  localStorage.setItem(STORE_KEY, JSON.stringify(cards));
+}
+
+let cards = loadData();
+let editingId = null;
+let drawerCardId = null;
+
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+}
+
+function today() {
+  return new Date().toISOString().slice(0,10);
+}
+
+function fmt(d) {
+  if (!d) return '';
+  const [y,m,day] = d.split('-');
+  return `${day}.${m}.${y}`;
+}
+
+function dueClass(faellig) {
+  if (!faellig) return 'normal';
+  const now = new Date(); now.setHours(0,0,0,0);
+  const due = new Date(faellig);
+  const diff = (due - now) / 86400000;
+  if (diff < 0) return 'due-red';
+  if (diff <= 5) return 'due-amber';
+  return 'normal';
+}
+
+// ═══════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════
+function render() {
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+
+  const jetzt = cards.filter(c => c.status === 'jetzt');
+  const overdue = cards.filter(c => c.faellig && dueClass(c.faellig) === 'due-red' && c.status !== 'erledigt');
+  const dueSoon = cards.filter(c => c.faellig && dueClass(c.faellig) === 'due-amber' && c.status !== 'erledigt');
+  const warten = cards.filter(c => c.status === 'warten');
+
+  // WIP indicator
+  const wip = document.getElementById('wipStatus');
+  wip.textContent = `WIP: ${jetzt.length} / 3`;
+  wip.className = 'wip-status ' + (jetzt.length > 3 ? 'warn' : 'ok');
+
+  // Date bar
+  document.getElementById('datebarToday').textContent = `${today()}`;
+  document.getElementById('datebarOverdue').textContent =
+    overdue.length ? `⚠ ${overdue.length} überfällig` : '';
+  document.getElementById('datebarDueSoon').textContent =
+    dueSoon.length ? `◷ ${dueSoon.length} fällt diese Woche` : '';
+  document.getElementById('datebarWaiting').textContent =
+    warten.length ? `⧖ ${warten.length} in Warten` : '';
+
+  COLS.forEach(col => {
+    const colCards = cards.filter(c => c.status === col.id);
+    const div = document.createElement('div');
+    div.className = 'col';
+
+    const isWarnCount = (col.id === 'jetzt' && colCards.length > 3) ||
+                        (col.id === 'warten' && colCards.length > 5);
+
+    div.innerHTML = `
+      <div class="col-head">
+        <span class="col-name">${col.name}</span>
+        <span class="col-count ${isWarnCount ? 'warn' : ''}">${colCards.length}</span>
+      </div>
+      <div class="col-body" id="col-${col.id}"></div>
+    `;
+    board.appendChild(div);
+
+    const body = div.querySelector(`#col-${col.id}`);
+
+    if (colCards.length === 0) {
+      body.innerHTML = '<div class="empty">— leer —</div>';
+    }
+
+    colCards.forEach(card => {
+      const dc = dueClass(card.faellig);
+      const dueLabel = card.faellig
+        ? `<span class="kcard-due ${dc === 'due-red' ? 'red' : dc === 'due-amber' ? 'amber' : ''}">${dc === 'due-red' ? '⚠ ' : ''}${fmt(card.faellig)}</span>`
+        : '<span class="kcard-due">—</span>';
+
+      const el = document.createElement('div');
+      el.className = `kcard ${dc}`;
+      el.innerHTML = `
+        <div class="kcard-title">${esc(card.thema)}</div>
+        <div class="kcard-next">${esc(card.naechsterSchritt || '—')}</div>
+        <div class="kcard-meta">
+          <span class="kcard-area">${esc(card.bereich || '—')}</span>
+          ${dueLabel}
+        </div>
+      `;
+      el.addEventListener('click', () => openDrawer(card.id));
+      body.appendChild(el);
+    });
+
+    const addBtn = document.createElement('button');
+    addBtn.className = 'add-card-btn';
+    addBtn.textContent = '+ Vorgang';
+    addBtn.addEventListener('click', () => openNewModal(col.id));
+    body.appendChild(addBtn);
+  });
+}
+
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ═══════════════════════════════════════════════
+// MODAL
+// ═══════════════════════════════════════════════
+function openNewModal(colId) {
+  editingId = null;
+  document.getElementById('modalTitle').textContent = 'Neuer Vorgang';
+  document.getElementById('fThema').value = '';
+  document.getElementById('fBereich').value = '';
+  document.getElementById('fStatus').value = colId || 'eingang';
+  document.getElementById('fZeitfokus').value = 'Diese Woche';
+  document.getElementById('fNaechsterSchritt').value = '';
+  document.getElementById('fFaellig').value = '';
+  document.getElementById('fWartenAuf').value = '';
+  document.getElementById('fNachweis').value = '';
+  document.getElementById('modalOverlay').classList.add('open');
+  setTimeout(() => document.getElementById('fThema').focus(), 50);
+}
+
+function openEditModal(id) {
+  const c = cards.find(x => x.id === id);
+  if (!c) return;
+  editingId = id;
+  document.getElementById('modalTitle').textContent = 'Vorgang bearbeiten';
+  document.getElementById('fThema').value = c.thema || '';
+  document.getElementById('fBereich').value = c.bereich || '';
+  document.getElementById('fStatus').value = c.status || 'eingang';
+  document.getElementById('fZeitfokus').value = c.zeitfokus || 'Diese Woche';
+  document.getElementById('fNaechsterSchritt').value = c.naechsterSchritt || '';
+  document.getElementById('fFaellig').value = c.faellig || '';
+  document.getElementById('fWartenAuf').value = c.wartenAuf || '';
+  document.getElementById('fNachweis').value = c.nachweis || '';
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+}
+function closeModalIfBg(e) {
+  if (e.target === document.getElementById('modalOverlay')) closeModal();
+}
+
+function saveCard() {
+  const thema = document.getElementById('fThema').value.trim();
+  const next  = document.getElementById('fNaechsterSchritt').value.trim();
+  if (!thema) { document.getElementById('fThema').focus(); return; }
+
+  const t = today();
+
+  if (editingId) {
+    const c = cards.find(x => x.id === editingId);
+    const oldStatus = c.status;
+    c.thema           = thema;
+    c.bereich         = document.getElementById('fBereich').value.trim();
+    c.status          = document.getElementById('fStatus').value;
+    c.zeitfokus       = document.getElementById('fZeitfokus').value;
+    c.naechsterSchritt= next;
+    c.faellig         = document.getElementById('fFaellig').value;
+    c.wartenAuf       = document.getElementById('fWartenAuf').value.trim();
+    c.nachweis        = document.getElementById('fNachweis').value.trim();
+    c.letzteUpdate    = t;
+    const logLine = `${t}: Bearbeitet${c.status !== oldStatus ? ' → Status: ' + c.status : ''}`;
+    c.log = c.log ? logLine + '\n' + c.log : logLine;
+  } else {
+    const card = {
+      id:               uid(),
+      thema,
+      bereich:          document.getElementById('fBereich').value.trim(),
+      status:           document.getElementById('fStatus').value,
+      zeitfokus:        document.getElementById('fZeitfokus').value,
+      naechsterSchritt: next,
+      faellig:          document.getElementById('fFaellig').value,
+      wartenAuf:        document.getElementById('fWartenAuf').value.trim(),
+      nachweis:         document.getElementById('fNachweis').value.trim(),
+      letzteUpdate:     t,
+      log:              `${t}: Vorgang angelegt`,
+    };
+    cards.push(card);
+  }
+
+  saveData(cards);
+  closeModal();
+  render();
+
+  if (editingId && drawerCardId === editingId) {
+    openDrawer(editingId);
+  }
+}
+
+// ═══════════════════════════════════════════════
+// DRAWER
+// ═══════════════════════════════════════════════
+function openDrawer(id) {
+  drawerCardId = id;
+  const c = cards.find(x => x.id === id);
+  if (!c) return;
+
+  document.getElementById('drawerTitle').textContent = c.thema;
+
+  const dc = dueClass(c.faellig);
+  const dueVal = c.faellig
+    ? `<span class="${dc === 'due-red' ? 'red' : dc === 'due-amber' ? 'amber' : ''}">${dc === 'due-red' ? '⚠ ' : ''}${fmt(c.faellig)}${dc === 'due-red' ? ' — überfällig' : ''}</span>`
+    : '—';
+
+  const statusBadgeClass = {
+    eingang: 'badge-eingang', jetzt: 'badge-jetzt', warten: 'badge-warten',
+    erledigt: 'badge-erledigt', parken: 'badge-parken'
+  }[c.status] || 'badge-eingang';
+
+  const statusLabel = { eingang:'Eingang', jetzt:'Jetzt', warten:'Warten', erledigt:'Erledigt', parken:'Parken' }[c.status];
+
+  const logLines = (c.log || '').split('\n').filter(Boolean).map(l => {
+    const m = l.match(/^(\d{4}-\d{2}-\d{2}):\s*(.+)$/);
+    if (m) return `<div class="log-entry"><span class="log-date">${m[1]}</span><span class="log-text">${esc(m[2])}</span></div>`;
+    return `<div class="log-entry"><span class="log-text">${esc(l)}</span></div>`;
+  }).join('');
+
+  document.getElementById('drawerBody').innerHTML = `
+    <div class="drawer-section">
+      <div class="drawer-section-title">Metadaten</div>
+      <div class="drawer-grid">
+        <div class="dfield"><div class="dfield-label">Status</div><div class="dfield-val"><span class="status-badge ${statusBadgeClass}">${statusLabel}</span></div></div>
+        <div class="dfield"><div class="dfield-label">Zeitfokus</div><div class="dfield-val">${esc(c.zeitfokus || '—')}</div></div>
+        <div class="dfield"><div class="dfield-label">Bereich / Ort</div><div class="dfield-val">${esc(c.bereich || '—')}</div></div>
+        <div class="dfield"><div class="dfield-label">Fällig / WV</div><div class="dfield-val">${dueVal}</div></div>
+        <div class="dfield"><div class="dfield-label">Warten auf</div><div class="dfield-val">${esc(c.wartenAuf || '—')}</div></div>
+        <div class="dfield"><div class="dfield-label">Nachweis</div><div class="dfield-val">${esc(c.nachweis || '—')}</div></div>
+      </div>
+    </div>
+    <div class="drawer-section">
+      <div class="drawer-section-title">Nächster Schritt</div>
+      <div class="next-step-box">${esc(c.naechsterSchritt || '—')}</div>
+    </div>
+    <div class="drawer-section">
+      <div class="drawer-section-title">Log / Chronik</div>
+      <div id="drawerLog">${logLines || '<div style="color:var(--text3);font-size:11px">Noch kein Log-Eintrag.</div>'}</div>
+      <div class="log-add">
+        <input type="text" id="logInput" placeholder="Neuer Log-Eintrag…" onkeydown="if(event.key==='Enter')addLogEntry()">
+        <button class="btn" onclick="addLogEntry()">+ Log</button>
+      </div>
+    </div>
+    <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:8px">
+      Letztes Update: ${c.letzteUpdate || '—'}
+    </div>
+  `;
+
+  document.getElementById('drawerOverlay').classList.add('open');
+  document.getElementById('drawer').classList.add('open');
+}
+
+function closeDrawer() {
+  document.getElementById('drawerOverlay').classList.remove('open');
+  document.getElementById('drawer').classList.remove('open');
+  drawerCardId = null;
+}
+
+function editFromDrawer() {
+  const id = drawerCardId;
+  closeDrawer();
+  openEditModal(id);
+}
+
+function markErledigt() {
+  const c = cards.find(x => x.id === drawerCardId);
+  if (!c) return;
+  const t = today();
+  c.status = 'erledigt';
+  c.letzteUpdate = t;
+  c.log = `${t}: Erledigt markiert\n` + (c.log || '');
+  saveData(cards);
+  closeDrawer();
+  render();
+}
+
+function addLogEntry() {
+  const input = document.getElementById('logInput');
+  const text = (input.value || '').trim();
+  if (!text) return;
+  const c = cards.find(x => x.id === drawerCardId);
+  if (!c) return;
+  const t = today();
+  const entry = `${t}: ${text}`;
+  c.log = entry + (c.log ? '\n' + c.log : '');
+  c.letzteUpdate = t;
+  saveData(cards);
+  openDrawer(drawerCardId);
+}
+
+// ═══════════════════════════════════════════════
+// DELETE
+// ═══════════════════════════════════════════════
+let deleteTargetId = null;
+
+function confirmDelete() {
+  const c = cards.find(x => x.id === drawerCardId);
+  if (!c) return;
+  deleteTargetId = drawerCardId;
+  document.getElementById('confirmText').textContent =
+    `„${c.thema}" wird unwiderruflich gelöscht.`;
+  document.getElementById('confirmOverlay').classList.add('open');
+}
+
+function closeConfirm() {
+  document.getElementById('confirmOverlay').classList.remove('open');
+  deleteTargetId = null;
+}
+
+function doDelete() {
+  cards = cards.filter(x => x.id !== deleteTargetId);
+  saveData(cards);
+  closeConfirm();
+  closeDrawer();
+  render();
+}
+
+// ═══════════════════════════════════════════════
+// WEEKLY REVIEW
+// ═══════════════════════════════════════════════
+function openReview() {
+  const jetzt = cards.filter(c => c.status === 'jetzt');
+  const warten = cards.filter(c => c.status === 'warten');
+  const eingang = cards.filter(c => c.status === 'eingang');
+  const t = today();
+
+  const wartenAlt = warten.filter(c => {
+    if (!c.faellig) return false;
+    const due = new Date(c.faellig);
+    const now = new Date(); now.setHours(0,0,0,0);
+    return (now - due) / 86400000 > 7;
+  });
+
+  const overdue = cards.filter(c =>
+    c.faellig && dueClass(c.faellig) === 'due-red' && c.status !== 'erledigt'
+  );
+
+  let html = '';
+
+  html += `<div class="review-section">
+    <div class="review-label">WIP-Check — Jetzt (${jetzt.length}/3)</div>
+    ${jetzt.length === 0 ? '<div style="color:var(--text3);font-size:12px;padding:6px 0">Keine aktiven Vorgänge.</div>' : ''}
+    ${jetzt.map(c => `<div class="review-item">${esc(c.thema)}<span class="review-item-sub">${esc(c.zeitfokus||'')}</span></div>`).join('')}
+    ${jetzt.length > 3 ? '<div style="color:var(--red);font-size:11px;padding:4px 0;font-family:var(--mono)">⚠ WIP-Limit überschritten — max. 3</div>' : ''}
+  </div>`;
+
+  html += `<div class="review-section">
+    <div class="review-label">Überfällig (${overdue.length})</div>
+    ${overdue.length === 0 ? '<div style="color:var(--text3);font-size:12px;padding:6px 0">Keine überfälligen Vorgänge.</div>' : ''}
+    ${overdue.map(c => `<div class="review-item">${esc(c.thema)}<span class="review-item-sub" style="color:var(--red)">seit ${fmt(c.faellig)}</span></div>`).join('')}
+  </div>`;
+
+  html += `<div class="review-section">
+    <div class="review-label">Warten — älter als 7 Tage (${wartenAlt.length})</div>
+    ${wartenAlt.length === 0 ? '<div style="color:var(--text3);font-size:12px;padding:6px 0">Kein Vorgang hängt zu lang.</div>' : ''}
+    ${wartenAlt.map(c => `<div class="review-item">${esc(c.thema)}<span class="review-item-sub">${esc(c.wartenAuf||'?')}</span></div>`).join('')}
+  </div>`;
+
+  html += `<div class="review-section">
+    <div class="review-label">Eingang — zu triagieren (${eingang.length})</div>
+    ${eingang.length === 0 ? '<div style="color:var(--text3);font-size:12px;padding:6px 0">Eingang leer.</div>' : ''}
+    ${eingang.map(c => `<div class="review-item">${esc(c.thema)}<span class="review-item-sub">${esc(c.naechsterSchritt||'')}</span></div>`).join('')}
+  </div>`;
+
+  html += `<div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:8px">Review-Stand: ${t}</div>`;
+
+  document.getElementById('reviewBody').innerHTML = html;
+  document.getElementById('reviewOverlay').classList.add('open');
+}
+
+function closeReview() {
+  document.getElementById('reviewOverlay').classList.remove('open');
+}
+function closeReviewIfBg(e) {
+  if (e.target === document.getElementById('reviewOverlay')) closeReview();
+}
+
+// ═══════════════════════════════════════════════
+// KEYBOARD
+// ═══════════════════════════════════════════════
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    closeModal(); closeDrawer(); closeConfirm(); closeReview();
+  }
+  if (e.key === 'n' && !e.ctrlKey && !e.metaKey &&
+      !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) {
+    openNewModal();
+  }
+});
+
+// ═══════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════
+render();
+</script>
+</body>
+</html>
