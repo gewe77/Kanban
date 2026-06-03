@@ -48,23 +48,23 @@
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
 
 :root {
-  --bg:       #1a1a18;
-  --bg2:      #222220;
-  --bg3:      #2a2a27;
-  --bg4:      #333330;
-  --line:     rgba(255,255,255,0.07);
-  --line2:    rgba(255,255,255,0.13);
-  --text:     #e8e6df;
-  --text2:    #9a9890;
-  --text3:    #5a5855;
-  --amber:    #d4870a;
-  --amber-bg: rgba(212,135,10,0.12);
-  --red:      #c94040;
-  --red-bg:   rgba(201,64,64,0.12);
-  --green:    #3a8a5a;
-  --green-bg: rgba(58,138,90,0.1);
-  --blue:     #3a6ea8;
-  --blue-bg:  rgba(58,110,168,0.15);
+  --bg:       #1e2024;
+  --bg2:      #272b30;
+  --bg3:      #30353b;
+  --bg4:      #3a4048;
+  --line:     rgba(255,255,255,0.09);
+  --line2:    rgba(255,255,255,0.18);
+  --text:     #eceae2;
+  --text2:    #b0aea6;
+  --text3:    #78766f;
+  --amber:    #f0960a;
+  --amber-bg: rgba(240,150,10,0.15);
+  --red:      #e04444;
+  --red-bg:   rgba(224,68,68,0.15);
+  --green:    #2ecc71;
+  --green-bg: rgba(46,204,113,0.12);
+  --blue:     #4a9edd;
+  --blue-bg:  rgba(74,158,221,0.18);
   --col-w:    220px;
   --mono: 'IBM Plex Mono', monospace;
   --sans: 'IBM Plex Sans', sans-serif;
@@ -163,23 +163,23 @@ btn, button { font-family: var(--sans); cursor: pointer; }
 /* ── Board ── */
 .board-wrap {
   padding: 16px 20px;
-  overflow-x: auto;
   min-height: calc(100vh - 96px);
 }
 .board {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
   gap: 12px;
   align-items: flex-start;
-  min-width: max-content;
+  height: 100%;
 }
 
 /* ── Column ── */
 .col {
-  width: var(--col-w);
   flex-shrink: 0;
   background: var(--bg2);
   border: 1px solid var(--line);
   border-radius: 3px;
+  min-width: 0;
 }
 .col-head {
   padding: 10px 12px 9px;
@@ -190,10 +190,21 @@ btn, button { font-family: var(--sans); cursor: pointer; }
   font-family: var(--mono);
   font-size: 10px;
   font-weight: 500;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--text3);
+  color: var(--text2);
 }
+/* Spalten-spezifische Akzente */
+.col[data-col="eingang"] .col-head { border-top: 2px solid #6e8bb5; }
+.col[data-col="eingang"] .col-name { color: #8aadd4; }
+.col[data-col="jetzt"]   .col-head { border-top: 2px solid var(--amber); }
+.col[data-col="jetzt"]   .col-name { color: var(--amber); }
+.col[data-col="warten"]  .col-head { border-top: 2px solid #b07ad4; }
+.col[data-col="warten"]  .col-name { color: #c49ee0; }
+.col[data-col="erledigt"].col-head { border-top: 2px solid var(--green); }
+.col[data-col="erledigt"].col-name { color: var(--green); }
+.col[data-col="parken"]  .col-head { border-top: 2px solid var(--text3); }
+.col[data-col="parken"]  .col-name { color: var(--text2); }
 .col-count {
   font-family: var(--mono);
   font-size: 10px;
@@ -862,6 +873,7 @@ function render() {
     const isWarn   = (col.id==='jetzt' && colCards.length>3) || (col.id==='warten' && colCards.length>5);
     const div = document.createElement('div');
     div.className = 'col';
+    div.dataset.col = col.id;
     div.innerHTML = `
       <div class="col-head">
         <span class="col-name">${col.name}</span>
