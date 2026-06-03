@@ -6,6 +6,44 @@
 <meta name="theme-color" content="#1a1a18">
 <title>Betrieb & Projekte — Kanban</title>
 <link rel="manifest" href="data:application/json,{&quot;name&quot;:&quot;Betrieb Kanban&quot;,&quot;short_name&quot;:&quot;Kanban&quot;,&quot;display&quot;:&quot;standalone&quot;,&quot;background_color&quot;:&quot;#1a1a18&quot;,&quot;theme_color&quot;:&quot;#1a1a18&quot;}">
+
+<!-- ═══ FIREBASE SDK ═══ -->
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js';
+  import { getFirestore, collection, getDocs, setDoc, deleteDoc, doc }
+    from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js';
+  import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut }
+    from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js';
+
+  const firebaseConfig = {
+    apiKey:            "AIzaSyDzm5ePW5f45RU8kVn-ch3jRgdOmT_DzZg",
+    authDomain:        "kanban-betrieb.firebaseapp.com",
+    projectId:         "kanban-betrieb",
+    storageBucket:     "kanban-betrieb.firebasestorage.app",
+    messagingSenderId: "858594172795",
+    appId:             "1:858594172795:web:d6c18da8e9814a298ba7de"
+  };
+
+  const app  = initializeApp(firebaseConfig);
+  const db   = getFirestore(app);
+  const auth = getAuth(app);
+
+  window._db    = db;
+  window._auth  = auth;
+  window._fbCol = () => collection(db, 'vorgaenge');
+  window._fbFns = { getDocs, setDoc, deleteDoc, doc, signInWithPopup, GoogleAuthProvider, signOut };
+
+  onAuthStateChanged(auth, user => {
+    window._currentUser = user || null;
+    if (typeof updateAuthUI === 'function') updateAuthUI();
+    if (user) {
+      if (typeof loadFromFirestore === 'function') loadFromFirestore();
+    } else {
+      if (typeof render === 'function') { cards = loadLocalData(); render(); }
+    }
+  });
+</script>
+
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap');
 
@@ -539,6 +577,19 @@ btn, button { font-family: var(--sans); cursor: pointer; }
   gap: 8px;
 }
 .review-item-sub { font-size: 11px; color: var(--text3); }
+
+.btn-auth-on  { color: var(--green) !important; border-color: rgba(58,138,90,0.3) !important; }
+.btn-auth-off { color: var(--text3); }
+
+.sync-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  display: inline-block; margin-right: 5px; vertical-align: middle;
+  background: var(--text3); transition: background 0.3s;
+}
+.sync-dot.synced  { background: var(--green); }
+.sync-dot.syncing { background: var(--amber); animation: pulse 1s infinite; }
+.sync-dot.error   { background: var(--red); }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
 </style>
 </head>
 <body>
@@ -547,6 +598,7 @@ btn, button { font-family: var(--sans); cursor: pointer; }
   <div class="logo">BETRIEB <span>&amp;</span> PROJEKTE</div>
   <div class="header-right">
     <span class="wip-status" id="wipStatus">WIP: — / 3</span>
+    <button class="btn btn-auth-off" id="authBtn" onclick="handleAuth()">○ Anmelden</button>
     <button class="btn" onclick="openReview()">⬡ Weekly Review</button>
     <button class="btn btn-primary" onclick="openNewModal()">+ Neuer Vorgang</button>
   </div>
@@ -555,9 +607,11 @@ btn, button { font-family: var(--sans); cursor: pointer; }
 <div class="datebar">
   <span class="datebar-item" id="datebarToday"></span>
   <span style="color:var(--line2)">|</span>
-  <span class="datebar-item red" id="datebarOverdue"></span>
+  <span class="datebar-item" id="datebarSync"><span class="sync-dot" id="syncDot"></span><span id="syncText">Lokal</span></span>
+  <span style="color:var(--line2)">|</span>
+  <span class="datebar-item red"   id="datebarOverdue"></span>
   <span class="datebar-item amber" id="datebarDueSoon"></span>
-  <span class="datebar-item" id="datebarWaiting"></span>
+  <span class="datebar-item"       id="datebarWaiting"></span>
 </div>
 
 <div class="board-wrap">
@@ -668,51 +722,118 @@ btn, button { font-family: var(--sans); cursor: pointer; }
 
 <script>
 // ═══════════════════════════════════════════════
-// DATA
+// DATEN
 // ═══════════════════════════════════════════════
 const STORE_KEY = 'kanban_betrieb_v1';
 const COLS = [
-  { id: 'eingang',  name: 'Eingang' },
-  { id: 'jetzt',   name: 'Jetzt' },
-  { id: 'warten',  name: 'Warten' },
+  { id: 'eingang',  name: 'Eingang'  },
+  { id: 'jetzt',   name: 'Jetzt'    },
+  { id: 'warten',  name: 'Warten'   },
   { id: 'erledigt',name: 'Erledigt' },
-  { id: 'parken',  name: 'Parken' },
+  { id: 'parken',  name: 'Parken'   },
 ];
 
-function loadData() {
-  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || []; }
-  catch { return []; }
-}
-function saveData(cards) {
-  localStorage.setItem(STORE_KEY, JSON.stringify(cards));
-}
-
-let cards = loadData();
+let cards = [];
 let editingId = null;
 let drawerCardId = null;
+let deleteTargetId = null;
 
-function uid() {
-  return Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+window._currentUser = null;
+
+function uid()   { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+function today() { return new Date().toISOString().slice(0,10); }
+function fmt(d)  { if (!d) return ''; const [y,m,day]=d.split('-'); return `${day}.${m}.${y}`; }
+function esc(s)  { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function dueClass(f) {
+  if (!f) return 'normal';
+  const diff = (new Date(f) - new Date(today())) / 86400000;
+  return diff < 0 ? 'due-red' : diff <= 5 ? 'due-amber' : 'normal';
 }
 
-function today() {
-  return new Date().toISOString().slice(0,10);
+function loadLocalData() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY)) || []; } catch { return []; }
+}
+function saveLocal() { localStorage.setItem(STORE_KEY, JSON.stringify(cards)); }
+
+// ═══════════════════════════════════════════════
+// SYNC-STATUS
+// ═══════════════════════════════════════════════
+function setSyncStatus(state) {
+  const dot = document.getElementById('syncDot');
+  const txt = document.getElementById('syncText');
+  if (!dot) return;
+  dot.className = 'sync-dot ' + state;
+  txt.textContent = { synced:'Firestore sync', syncing:'Speichern…', error:'Sync-Fehler' }[state] || 'Lokal';
 }
 
-function fmt(d) {
-  if (!d) return '';
-  const [y,m,day] = d.split('-');
-  return `${day}.${m}.${y}`;
+// ═══════════════════════════════════════════════
+// FIRESTORE
+// ═══════════════════════════════════════════════
+async function loadFromFirestore() {
+  setSyncStatus('syncing');
+  try {
+    const { getDocs } = window._fbFns;
+    const snap = await getDocs(window._fbCol());
+    cards = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    saveLocal();
+    setSyncStatus('synced');
+    render();
+  } catch(e) {
+    console.error('Firestore laden:', e);
+    setSyncStatus('error');
+    cards = loadLocalData();
+    render();
+  }
 }
 
-function dueClass(faellig) {
-  if (!faellig) return 'normal';
-  const now = new Date(); now.setHours(0,0,0,0);
-  const due = new Date(faellig);
-  const diff = (due - now) / 86400000;
-  if (diff < 0) return 'due-red';
-  if (diff <= 5) return 'due-amber';
-  return 'normal';
+async function saveToFirestore() {
+  if (!window._currentUser) return;
+  setSyncStatus('syncing');
+  try {
+    const { setDoc, doc } = window._fbFns;
+    for (const card of cards) {
+      await setDoc(doc(window._db, 'vorgaenge', card.id), card);
+    }
+    setSyncStatus('synced');
+  } catch(e) { console.error('Firestore speichern:', e); setSyncStatus('error'); }
+}
+
+async function deleteFromFirestore(id) {
+  if (!window._currentUser) return;
+  try {
+    const { deleteDoc, doc } = window._fbFns;
+    await deleteDoc(doc(window._db, 'vorgaenge', id));
+  } catch(e) { console.error('Firestore löschen:', e); }
+}
+
+function saveData() { saveLocal(); saveToFirestore(); }
+
+// ═══════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════
+function updateAuthUI() {
+  const btn = document.getElementById('authBtn');
+  if (!btn) return;
+  if (window._currentUser) {
+    const e = window._currentUser.email || 'Angemeldet';
+    btn.textContent = '● ' + (e.length > 22 ? e.slice(0,20)+'…' : e);
+    btn.className = 'btn btn-auth-on';
+  } else {
+    btn.textContent = '○ Anmelden';
+    btn.className = 'btn btn-auth-off';
+    setSyncStatus('');
+  }
+}
+
+async function handleAuth() {
+  if (!window._fbFns) return;
+  const { signInWithPopup, GoogleAuthProvider, signOut } = window._fbFns;
+  if (window._currentUser) {
+    if (confirm('Abmelden?')) await signOut(window._auth);
+  } else {
+    try { await signInWithPopup(window._auth, new GoogleAuthProvider()); }
+    catch(e) { if (e.code !== 'auth/popup-closed-by-user') alert('Anmeldung fehlgeschlagen: ' + e.message); }
+  }
 }
 
 // ═══════════════════════════════════════════════
@@ -722,64 +843,47 @@ function render() {
   const board = document.getElementById('board');
   board.innerHTML = '';
 
-  const jetzt = cards.filter(c => c.status === 'jetzt');
-  const overdue = cards.filter(c => c.faellig && dueClass(c.faellig) === 'due-red' && c.status !== 'erledigt');
-  const dueSoon = cards.filter(c => c.faellig && dueClass(c.faellig) === 'due-amber' && c.status !== 'erledigt');
-  const warten = cards.filter(c => c.status === 'warten');
+  const jetzt   = cards.filter(c => c.status === 'jetzt');
+  const overdue = cards.filter(c => c.faellig && dueClass(c.faellig)==='due-red'   && c.status!=='erledigt');
+  const dueSoon = cards.filter(c => c.faellig && dueClass(c.faellig)==='due-amber' && c.status!=='erledigt');
+  const warten  = cards.filter(c => c.status === 'warten');
 
-  // WIP indicator
   const wip = document.getElementById('wipStatus');
   wip.textContent = `WIP: ${jetzt.length} / 3`;
-  wip.className = 'wip-status ' + (jetzt.length > 3 ? 'warn' : 'ok');
+  wip.className   = 'wip-status ' + (jetzt.length > 3 ? 'warn' : 'ok');
 
-  // Date bar
-  document.getElementById('datebarToday').textContent = `${today()}`;
-  document.getElementById('datebarOverdue').textContent =
-    overdue.length ? `⚠ ${overdue.length} überfällig` : '';
-  document.getElementById('datebarDueSoon').textContent =
-    dueSoon.length ? `◷ ${dueSoon.length} fällt diese Woche` : '';
-  document.getElementById('datebarWaiting').textContent =
-    warten.length ? `⧖ ${warten.length} in Warten` : '';
+  document.getElementById('datebarToday').textContent   = today();
+  document.getElementById('datebarOverdue').textContent = overdue.length ? `⚠ ${overdue.length} überfällig` : '';
+  document.getElementById('datebarDueSoon').textContent = dueSoon.length ? `◷ ${dueSoon.length} fällt diese Woche` : '';
+  document.getElementById('datebarWaiting').textContent = warten.length  ? `⧖ ${warten.length} in Warten` : '';
 
   COLS.forEach(col => {
     const colCards = cards.filter(c => c.status === col.id);
+    const isWarn   = (col.id==='jetzt' && colCards.length>3) || (col.id==='warten' && colCards.length>5);
     const div = document.createElement('div');
     div.className = 'col';
-
-    const isWarnCount = (col.id === 'jetzt' && colCards.length > 3) ||
-                        (col.id === 'warten' && colCards.length > 5);
-
     div.innerHTML = `
       <div class="col-head">
         <span class="col-name">${col.name}</span>
-        <span class="col-count ${isWarnCount ? 'warn' : ''}">${colCards.length}</span>
+        <span class="col-count ${isWarn?'warn':''}">${colCards.length}</span>
       </div>
-      <div class="col-body" id="col-${col.id}"></div>
-    `;
+      <div class="col-body" id="col-${col.id}"></div>`;
     board.appendChild(div);
 
     const body = div.querySelector(`#col-${col.id}`);
-
-    if (colCards.length === 0) {
-      body.innerHTML = '<div class="empty">— leer —</div>';
-    }
+    if (!colCards.length) body.innerHTML = '<div class="empty">— leer —</div>';
 
     colCards.forEach(card => {
-      const dc = dueClass(card.faellig);
-      const dueLabel = card.faellig
-        ? `<span class="kcard-due ${dc === 'due-red' ? 'red' : dc === 'due-amber' ? 'amber' : ''}">${dc === 'due-red' ? '⚠ ' : ''}${fmt(card.faellig)}</span>`
+      const dc  = dueClass(card.faellig);
+      const due = card.faellig
+        ? `<span class="kcard-due ${dc==='due-red'?'red':dc==='due-amber'?'amber':''}">${dc==='due-red'?'⚠ ':''}${fmt(card.faellig)}</span>`
         : '<span class="kcard-due">—</span>';
-
       const el = document.createElement('div');
       el.className = `kcard ${dc}`;
       el.innerHTML = `
         <div class="kcard-title">${esc(card.thema)}</div>
-        <div class="kcard-next">${esc(card.naechsterSchritt || '—')}</div>
-        <div class="kcard-meta">
-          <span class="kcard-area">${esc(card.bereich || '—')}</span>
-          ${dueLabel}
-        </div>
-      `;
+        <div class="kcard-next">${esc(card.naechsterSchritt||'—')}</div>
+        <div class="kcard-meta"><span class="kcard-area">${esc(card.bereich||'—')}</span>${due}</div>`;
       el.addEventListener('click', () => openDrawer(card.id));
       body.appendChild(el);
     });
@@ -792,24 +896,16 @@ function render() {
   });
 }
 
-function esc(s) {
-  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-}
-
 // ═══════════════════════════════════════════════
 // MODAL
 // ═══════════════════════════════════════════════
 function openNewModal(colId) {
   editingId = null;
   document.getElementById('modalTitle').textContent = 'Neuer Vorgang';
-  document.getElementById('fThema').value = '';
-  document.getElementById('fBereich').value = '';
-  document.getElementById('fStatus').value = colId || 'eingang';
+  ['fThema','fBereich','fNaechsterSchritt','fFaellig','fWartenAuf','fNachweis']
+    .forEach(id => document.getElementById(id).value = '');
+  document.getElementById('fStatus').value    = colId || 'eingang';
   document.getElementById('fZeitfokus').value = 'Diese Woche';
-  document.getElementById('fNaechsterSchritt').value = '';
-  document.getElementById('fFaellig').value = '';
-  document.getElementById('fWartenAuf').value = '';
-  document.getElementById('fNachweis').value = '';
   document.getElementById('modalOverlay').classList.add('open');
   setTimeout(() => document.getElementById('fThema').focus(), 50);
 }
@@ -818,50 +914,44 @@ function openEditModal(id) {
   const c = cards.find(x => x.id === id);
   if (!c) return;
   editingId = id;
-  document.getElementById('modalTitle').textContent = 'Vorgang bearbeiten';
-  document.getElementById('fThema').value = c.thema || '';
-  document.getElementById('fBereich').value = c.bereich || '';
-  document.getElementById('fStatus').value = c.status || 'eingang';
-  document.getElementById('fZeitfokus').value = c.zeitfokus || 'Diese Woche';
-  document.getElementById('fNaechsterSchritt').value = c.naechsterSchritt || '';
-  document.getElementById('fFaellig').value = c.faellig || '';
-  document.getElementById('fWartenAuf').value = c.wartenAuf || '';
-  document.getElementById('fNachweis').value = c.nachweis || '';
+  document.getElementById('modalTitle').textContent      = 'Vorgang bearbeiten';
+  document.getElementById('fThema').value                = c.thema || '';
+  document.getElementById('fBereich').value              = c.bereich || '';
+  document.getElementById('fStatus').value               = c.status || 'eingang';
+  document.getElementById('fZeitfokus').value            = c.zeitfokus || 'Diese Woche';
+  document.getElementById('fNaechsterSchritt').value     = c.naechsterSchritt || '';
+  document.getElementById('fFaellig').value              = c.faellig || '';
+  document.getElementById('fWartenAuf').value            = c.wartenAuf || '';
+  document.getElementById('fNachweis').value             = c.nachweis || '';
   document.getElementById('modalOverlay').classList.add('open');
 }
 
-function closeModal() {
-  document.getElementById('modalOverlay').classList.remove('open');
-}
-function closeModalIfBg(e) {
-  if (e.target === document.getElementById('modalOverlay')) closeModal();
-}
+function closeModal()      { document.getElementById('modalOverlay').classList.remove('open'); }
+function closeModalIfBg(e) { if (e.target===document.getElementById('modalOverlay')) closeModal(); }
 
 function saveCard() {
   const thema = document.getElementById('fThema').value.trim();
   const next  = document.getElementById('fNaechsterSchritt').value.trim();
   if (!thema) { document.getElementById('fThema').focus(); return; }
-
   const t = today();
 
   if (editingId) {
     const c = cards.find(x => x.id === editingId);
     const oldStatus = c.status;
-    c.thema           = thema;
-    c.bereich         = document.getElementById('fBereich').value.trim();
-    c.status          = document.getElementById('fStatus').value;
-    c.zeitfokus       = document.getElementById('fZeitfokus').value;
-    c.naechsterSchritt= next;
-    c.faellig         = document.getElementById('fFaellig').value;
-    c.wartenAuf       = document.getElementById('fWartenAuf').value.trim();
-    c.nachweis        = document.getElementById('fNachweis').value.trim();
-    c.letzteUpdate    = t;
-    const logLine = `${t}: Bearbeitet${c.status !== oldStatus ? ' → Status: ' + c.status : ''}`;
-    c.log = c.log ? logLine + '\n' + c.log : logLine;
+    c.thema = thema;
+    c.bereich          = document.getElementById('fBereich').value.trim();
+    c.status           = document.getElementById('fStatus').value;
+    c.zeitfokus        = document.getElementById('fZeitfokus').value;
+    c.naechsterSchritt = next;
+    c.faellig          = document.getElementById('fFaellig').value;
+    c.wartenAuf        = document.getElementById('fWartenAuf').value.trim();
+    c.nachweis         = document.getElementById('fNachweis').value.trim();
+    c.letzteUpdate     = t;
+    const logLine = `${t}: Bearbeitet${c.status!==oldStatus?' → Status: '+c.status:''}`;
+    c.log = c.log ? logLine+'\n'+c.log : logLine;
   } else {
-    const card = {
-      id:               uid(),
-      thema,
+    cards.push({
+      id: uid(), thema,
       bereich:          document.getElementById('fBereich').value.trim(),
       status:           document.getElementById('fStatus').value,
       zeitfokus:        document.getElementById('fZeitfokus').value,
@@ -871,17 +961,10 @@ function saveCard() {
       nachweis:         document.getElementById('fNachweis').value.trim(),
       letzteUpdate:     t,
       log:              `${t}: Vorgang angelegt`,
-    };
-    cards.push(card);
+    });
   }
-
-  saveData(cards);
-  closeModal();
-  render();
-
-  if (editingId && drawerCardId === editingId) {
-    openDrawer(editingId);
-  }
+  saveData(); closeModal(); render();
+  if (editingId && drawerCardId === editingId) openDrawer(editingId);
 }
 
 // ═══════════════════════════════════════════════
@@ -891,55 +974,48 @@ function openDrawer(id) {
   drawerCardId = id;
   const c = cards.find(x => x.id === id);
   if (!c) return;
-
   document.getElementById('drawerTitle').textContent = c.thema;
 
   const dc = dueClass(c.faellig);
   const dueVal = c.faellig
-    ? `<span class="${dc === 'due-red' ? 'red' : dc === 'due-amber' ? 'amber' : ''}">${dc === 'due-red' ? '⚠ ' : ''}${fmt(c.faellig)}${dc === 'due-red' ? ' — überfällig' : ''}</span>`
+    ? `<span class="${dc==='due-red'?'red':dc==='due-amber'?'amber':''}">${dc==='due-red'?'⚠ ':''}${fmt(c.faellig)}${dc==='due-red'?' — überfällig':''}</span>`
     : '—';
-
-  const statusBadgeClass = {
-    eingang: 'badge-eingang', jetzt: 'badge-jetzt', warten: 'badge-warten',
-    erledigt: 'badge-erledigt', parken: 'badge-parken'
-  }[c.status] || 'badge-eingang';
-
-  const statusLabel = { eingang:'Eingang', jetzt:'Jetzt', warten:'Warten', erledigt:'Erledigt', parken:'Parken' }[c.status];
-
-  const logLines = (c.log || '').split('\n').filter(Boolean).map(l => {
+  const badgeClass = {eingang:'badge-eingang',jetzt:'badge-jetzt',warten:'badge-warten',erledigt:'badge-erledigt',parken:'badge-parken'}[c.status]||'badge-eingang';
+  const statusLabel = {eingang:'Eingang',jetzt:'Jetzt',warten:'Warten',erledigt:'Erledigt',parken:'Parken'}[c.status];
+  const logLines = (c.log||'').split('\n').filter(Boolean).map(l => {
     const m = l.match(/^(\d{4}-\d{2}-\d{2}):\s*(.+)$/);
-    if (m) return `<div class="log-entry"><span class="log-date">${m[1]}</span><span class="log-text">${esc(m[2])}</span></div>`;
-    return `<div class="log-entry"><span class="log-text">${esc(l)}</span></div>`;
+    return m
+      ? `<div class="log-entry"><span class="log-date">${m[1]}</span><span class="log-text">${esc(m[2])}</span></div>`
+      : `<div class="log-entry"><span class="log-text">${esc(l)}</span></div>`;
   }).join('');
 
   document.getElementById('drawerBody').innerHTML = `
     <div class="drawer-section">
       <div class="drawer-section-title">Metadaten</div>
       <div class="drawer-grid">
-        <div class="dfield"><div class="dfield-label">Status</div><div class="dfield-val"><span class="status-badge ${statusBadgeClass}">${statusLabel}</span></div></div>
-        <div class="dfield"><div class="dfield-label">Zeitfokus</div><div class="dfield-val">${esc(c.zeitfokus || '—')}</div></div>
-        <div class="dfield"><div class="dfield-label">Bereich / Ort</div><div class="dfield-val">${esc(c.bereich || '—')}</div></div>
-        <div class="dfield"><div class="dfield-label">Fällig / WV</div><div class="dfield-val">${dueVal}</div></div>
-        <div class="dfield"><div class="dfield-label">Warten auf</div><div class="dfield-val">${esc(c.wartenAuf || '—')}</div></div>
-        <div class="dfield"><div class="dfield-label">Nachweis</div><div class="dfield-val">${esc(c.nachweis || '—')}</div></div>
+        <div><div class="dfield-label">Status</div><div class="dfield-val"><span class="status-badge ${badgeClass}">${statusLabel}</span></div></div>
+        <div><div class="dfield-label">Zeitfokus</div><div class="dfield-val">${esc(c.zeitfokus||'—')}</div></div>
+        <div><div class="dfield-label">Bereich / Ort</div><div class="dfield-val">${esc(c.bereich||'—')}</div></div>
+        <div><div class="dfield-label">Fällig / WV</div><div class="dfield-val">${dueVal}</div></div>
+        <div><div class="dfield-label">Warten auf</div><div class="dfield-val">${esc(c.wartenAuf||'—')}</div></div>
+        <div><div class="dfield-label">Nachweis</div><div class="dfield-val">${esc(c.nachweis||'—')}</div></div>
       </div>
     </div>
     <div class="drawer-section">
       <div class="drawer-section-title">Nächster Schritt</div>
-      <div class="next-step-box">${esc(c.naechsterSchritt || '—')}</div>
+      <div class="next-step-box">${esc(c.naechsterSchritt||'—')}</div>
     </div>
     <div class="drawer-section">
       <div class="drawer-section-title">Log / Chronik</div>
-      <div id="drawerLog">${logLines || '<div style="color:var(--text3);font-size:11px">Noch kein Log-Eintrag.</div>'}</div>
+      <div id="drawerLog">${logLines||'<div style="color:var(--text3);font-size:11px">Noch kein Eintrag.</div>'}</div>
       <div class="log-add">
         <input type="text" id="logInput" placeholder="Neuer Log-Eintrag…" onkeydown="if(event.key==='Enter')addLogEntry()">
         <button class="btn" onclick="addLogEntry()">+ Log</button>
       </div>
     </div>
     <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:8px">
-      Letztes Update: ${c.letzteUpdate || '—'}
-    </div>
-  `;
+      Letztes Update: ${c.letzteUpdate||'—'}
+    </div>`;
 
   document.getElementById('drawerOverlay').classList.add('open');
   document.getElementById('drawer').classList.add('open');
@@ -950,142 +1026,101 @@ function closeDrawer() {
   document.getElementById('drawer').classList.remove('open');
   drawerCardId = null;
 }
-
-function editFromDrawer() {
-  const id = drawerCardId;
-  closeDrawer();
-  openEditModal(id);
-}
+function editFromDrawer() { const id=drawerCardId; closeDrawer(); openEditModal(id); }
 
 function markErledigt() {
   const c = cards.find(x => x.id === drawerCardId);
   if (!c) return;
   const t = today();
-  c.status = 'erledigt';
-  c.letzteUpdate = t;
-  c.log = `${t}: Erledigt markiert\n` + (c.log || '');
-  saveData(cards);
-  closeDrawer();
-  render();
+  c.status='erledigt'; c.letzteUpdate=t;
+  c.log=`${t}: Erledigt markiert\n`+(c.log||'');
+  saveData(); closeDrawer(); render();
 }
 
 function addLogEntry() {
   const input = document.getElementById('logInput');
-  const text = (input.value || '').trim();
+  const text  = (input.value||'').trim();
   if (!text) return;
   const c = cards.find(x => x.id === drawerCardId);
   if (!c) return;
   const t = today();
-  const entry = `${t}: ${text}`;
-  c.log = entry + (c.log ? '\n' + c.log : '');
-  c.letzteUpdate = t;
-  saveData(cards);
-  openDrawer(drawerCardId);
+  c.log=`${t}: ${text}`+(c.log?'\n'+c.log:'');
+  c.letzteUpdate=t;
+  saveData(); openDrawer(drawerCardId);
 }
 
 // ═══════════════════════════════════════════════
-// DELETE
+// LÖSCHEN
 // ═══════════════════════════════════════════════
-let deleteTargetId = null;
-
 function confirmDelete() {
   const c = cards.find(x => x.id === drawerCardId);
   if (!c) return;
   deleteTargetId = drawerCardId;
-  document.getElementById('confirmText').textContent =
-    `„${c.thema}" wird unwiderruflich gelöscht.`;
+  document.getElementById('confirmText').textContent = `„${c.thema}" wird unwiderruflich gelöscht.`;
   document.getElementById('confirmOverlay').classList.add('open');
 }
-
 function closeConfirm() {
   document.getElementById('confirmOverlay').classList.remove('open');
   deleteTargetId = null;
 }
-
 function doDelete() {
+  deleteFromFirestore(deleteTargetId);
   cards = cards.filter(x => x.id !== deleteTargetId);
-  saveData(cards);
-  closeConfirm();
-  closeDrawer();
-  render();
+  saveLocal();
+  closeConfirm(); closeDrawer(); render();
 }
 
 // ═══════════════════════════════════════════════
 // WEEKLY REVIEW
 // ═══════════════════════════════════════════════
 function openReview() {
-  const jetzt = cards.filter(c => c.status === 'jetzt');
-  const warten = cards.filter(c => c.status === 'warten');
-  const eingang = cards.filter(c => c.status === 'eingang');
+  const jetzt   = cards.filter(c=>c.status==='jetzt');
+  const warten  = cards.filter(c=>c.status==='warten');
+  const eingang = cards.filter(c=>c.status==='eingang');
+  const overdue = cards.filter(c=>c.faellig&&dueClass(c.faellig)==='due-red'&&c.status!=='erledigt');
+  const wartenAlt = warten.filter(c=>c.faellig&&(new Date()-new Date(c.faellig))/86400000>7);
   const t = today();
 
-  const wartenAlt = warten.filter(c => {
-    if (!c.faellig) return false;
-    const due = new Date(c.faellig);
-    const now = new Date(); now.setHours(0,0,0,0);
-    return (now - due) / 86400000 > 7;
-  });
+  document.getElementById('reviewBody').innerHTML = `
+    <div class="review-section">
+      <div class="review-label">WIP-Check — Jetzt (${jetzt.length}/3)</div>
+      ${!jetzt.length?'<div style="color:var(--text3);font-size:12px;padding:6px 0">Keine aktiven Vorgänge.</div>':''}
+      ${jetzt.map(c=>`<div class="review-item">${esc(c.thema)}<span class="review-item-sub">${esc(c.zeitfokus||'')}</span></div>`).join('')}
+      ${jetzt.length>3?'<div style="color:var(--red);font-size:11px;padding:4px 0;font-family:var(--mono)">⚠ WIP-Limit überschritten</div>':''}
+    </div>
+    <div class="review-section">
+      <div class="review-label">Überfällig (${overdue.length})</div>
+      ${!overdue.length?'<div style="color:var(--text3);font-size:12px;padding:6px 0">Keine überfälligen Vorgänge.</div>':''}
+      ${overdue.map(c=>`<div class="review-item">${esc(c.thema)}<span class="review-item-sub" style="color:var(--red)">seit ${fmt(c.faellig)}</span></div>`).join('')}
+    </div>
+    <div class="review-section">
+      <div class="review-label">Warten > 7 Tage (${wartenAlt.length})</div>
+      ${!wartenAlt.length?'<div style="color:var(--text3);font-size:12px;padding:6px 0">Kein Vorgang hängt zu lang.</div>':''}
+      ${wartenAlt.map(c=>`<div class="review-item">${esc(c.thema)}<span class="review-item-sub">${esc(c.wartenAuf||'?')}</span></div>`).join('')}
+    </div>
+    <div class="review-section">
+      <div class="review-label">Eingang — zu triagieren (${eingang.length})</div>
+      ${!eingang.length?'<div style="color:var(--text3);font-size:12px;padding:6px 0">Eingang leer.</div>':''}
+      ${eingang.map(c=>`<div class="review-item">${esc(c.thema)}<span class="review-item-sub">${esc(c.naechsterSchritt||'')}</span></div>`).join('')}
+    </div>
+    <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:8px">Review-Stand: ${t}</div>`;
 
-  const overdue = cards.filter(c =>
-    c.faellig && dueClass(c.faellig) === 'due-red' && c.status !== 'erledigt'
-  );
-
-  let html = '';
-
-  html += `<div class="review-section">
-    <div class="review-label">WIP-Check — Jetzt (${jetzt.length}/3)</div>
-    ${jetzt.length === 0 ? '<div style="color:var(--text3);font-size:12px;padding:6px 0">Keine aktiven Vorgänge.</div>' : ''}
-    ${jetzt.map(c => `<div class="review-item">${esc(c.thema)}<span class="review-item-sub">${esc(c.zeitfokus||'')}</span></div>`).join('')}
-    ${jetzt.length > 3 ? '<div style="color:var(--red);font-size:11px;padding:4px 0;font-family:var(--mono)">⚠ WIP-Limit überschritten — max. 3</div>' : ''}
-  </div>`;
-
-  html += `<div class="review-section">
-    <div class="review-label">Überfällig (${overdue.length})</div>
-    ${overdue.length === 0 ? '<div style="color:var(--text3);font-size:12px;padding:6px 0">Keine überfälligen Vorgänge.</div>' : ''}
-    ${overdue.map(c => `<div class="review-item">${esc(c.thema)}<span class="review-item-sub" style="color:var(--red)">seit ${fmt(c.faellig)}</span></div>`).join('')}
-  </div>`;
-
-  html += `<div class="review-section">
-    <div class="review-label">Warten — älter als 7 Tage (${wartenAlt.length})</div>
-    ${wartenAlt.length === 0 ? '<div style="color:var(--text3);font-size:12px;padding:6px 0">Kein Vorgang hängt zu lang.</div>' : ''}
-    ${wartenAlt.map(c => `<div class="review-item">${esc(c.thema)}<span class="review-item-sub">${esc(c.wartenAuf||'?')}</span></div>`).join('')}
-  </div>`;
-
-  html += `<div class="review-section">
-    <div class="review-label">Eingang — zu triagieren (${eingang.length})</div>
-    ${eingang.length === 0 ? '<div style="color:var(--text3);font-size:12px;padding:6px 0">Eingang leer.</div>' : ''}
-    ${eingang.map(c => `<div class="review-item">${esc(c.thema)}<span class="review-item-sub">${esc(c.naechsterSchritt||'')}</span></div>`).join('')}
-  </div>`;
-
-  html += `<div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:8px">Review-Stand: ${t}</div>`;
-
-  document.getElementById('reviewBody').innerHTML = html;
   document.getElementById('reviewOverlay').classList.add('open');
 }
-
-function closeReview() {
-  document.getElementById('reviewOverlay').classList.remove('open');
-}
-function closeReviewIfBg(e) {
-  if (e.target === document.getElementById('reviewOverlay')) closeReview();
-}
+function closeReview()      { document.getElementById('reviewOverlay').classList.remove('open'); }
+function closeReviewIfBg(e) { if(e.target===document.getElementById('reviewOverlay')) closeReview(); }
 
 // ═══════════════════════════════════════════════
-// KEYBOARD
+// KEYBOARD + INIT
 // ═══════════════════════════════════════════════
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') {
-    closeModal(); closeDrawer(); closeConfirm(); closeReview();
-  }
-  if (e.key === 'n' && !e.ctrlKey && !e.metaKey &&
-      !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) {
-    openNewModal();
-  }
+  if (e.key==='Escape') { closeModal(); closeDrawer(); closeConfirm(); closeReview(); }
+  if (e.key==='n' && !e.ctrlKey && !e.metaKey &&
+      !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) openNewModal();
 });
 
-// ═══════════════════════════════════════════════
-// INIT
-// ═══════════════════════════════════════════════
+// Fallback: lokale Daten anzeigen bis Firebase antwortet
+cards = loadLocalData();
 render();
 </script>
 </body>
