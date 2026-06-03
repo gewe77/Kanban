@@ -325,8 +325,8 @@ btn, button { font-family: var(--sans); cursor: pointer; }
 .kcard-area {
   font-family: var(--mono);
   font-size: 10px;
-  font-weight: 600;
-  color: var(--text2);
+  font-weight: 500;
+  color: rgba(195,192,183,0.80);
   background: transparent;
   padding: 0;
   border: none;
@@ -444,10 +444,33 @@ btn, button { font-family: var(--sans); cursor: pointer; }
   padding: 11px 14px; font-size: 12px; color: var(--text); line-height: 1.6;
 }
 
-.log-entry { padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 11px; line-height: 1.55; }
+.log-entry {
+  padding: 9px 0; border-bottom: 1px solid var(--line);
+  font-size: 11px; line-height: 1.55;
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 8px;
+}
 .log-entry:last-child { border-bottom: none; }
+.log-entry-content { flex: 1; }
+.log-entry-actions {
+  display: flex; gap: 4px; flex-shrink: 0;
+  opacity: 0; transition: opacity 0.15s;
+}
+.log-entry:hover .log-entry-actions { opacity: 1; }
+.log-entry-btn {
+  font-family: var(--mono); font-size: 9px; padding: 2px 6px;
+  border-radius: 2px; border: 1px solid var(--line2);
+  background: transparent; color: var(--text3); cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.log-entry-btn:hover { background: var(--el-4); color: var(--text2); }
+.log-entry-btn.del:hover { background: var(--red-bg); color: var(--red-light); border-color: var(--red-rim); }
 .log-date { font-family: var(--mono); color: var(--amber); font-size: 10px; display: block; margin-bottom: 2px; }
 .log-text { color: var(--text2); }
+.log-edit-input {
+  width: 100%; background: var(--el-3); border: 1px solid var(--amber-rim);
+  border-radius: 3px; color: var(--text); font-family: var(--sans);
+  font-size: 11px; padding: 4px 8px; outline: none; margin-top: 4px;
+}
 
 .status-badge {
   display: inline-block; font-family: var(--mono); font-size: 10px;
@@ -523,6 +546,73 @@ btn, button { font-family: var(--sans); cursor: pointer; }
 .sync-dot.syncing { background: var(--amber-light); animation: pulse 1s infinite; }
 .sync-dot.error   { background: var(--red-light); }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+/* ── Drag & Drop ── */
+.kcard { cursor: grab; }
+.kcard.dragging {
+  opacity: 0.45;
+  cursor: grabbing;
+  transform: rotate(1.5deg) scale(0.97);
+}
+.col-body.drag-over {
+  background: rgba(192,124,16,0.06);
+  outline: 1px dashed var(--amber-rim);
+  outline-offset: -4px;
+  border-radius: 4px;
+}
+
+/* ── Quick-Status Badge auf Karte ── */
+.kcard-status-badge {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  user-select: none;
+  position: relative;
+}
+.kcard-status-badge:hover { opacity: 0.75; }
+.kcard-status-badge.eingang { background: var(--blue-bg);   color: var(--blue-light);   border: 1px solid rgba(56,104,160,0.22); }
+.kcard-status-badge.jetzt   { background: var(--amber-bg);  color: var(--amber-light);  border: 1px solid var(--amber-rim); }
+.kcard-status-badge.warten  { background: var(--violet-bg); color: var(--violet-light); border: 1px solid var(--violet-rim); }
+.kcard-status-badge.erledigt{ background: var(--green-bg);  color: var(--green-light);  border: 1px solid var(--green-rim); }
+.kcard-status-badge.parken  { background: var(--el-4);      color: var(--text3);        border: 1px solid var(--line2); }
+
+/* Quick-Status Dropdown */
+.qs-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 500;
+  background: var(--el-5);
+  border: 1px solid var(--line3);
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+  min-width: 110px;
+}
+.qs-option {
+  display: block;
+  width: 100%;
+  padding: 7px 12px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text2);
+  background: transparent;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.qs-option:hover { background: var(--el-4); color: var(--text); }
+.qs-option.active { color: var(--amber-light); }
 </style>
 </head>
 <body>
@@ -812,13 +902,29 @@ function render() {
       const due = card.faellig
         ? `<span class="kcard-due ${dc==='due-red'?'red':dc==='due-amber'?'amber':''}">${dc==='due-red'?'⚠ ':''}${fmt(card.faellig)}</span>`
         : '<span class="kcard-due">—</span>';
+      const statusLabel = {eingang:'Eingang',jetzt:'Jetzt',warten:'Warten',erledigt:'Erledigt',parken:'Parken'}[card.status]||card.status;
       const el = document.createElement('div');
       el.className = `kcard ${dc}`;
+      el.draggable = true;
+      el.dataset.id = card.id;
       el.innerHTML = `
         <div class="kcard-title">${esc(card.thema)}</div>
         <div class="kcard-next">${esc(card.naechsterSchritt||'—')}</div>
-        <div class="kcard-meta"><span class="kcard-area">${esc(card.bereich||'—')}</span>${due}</div>`;
+        <div class="kcard-meta">
+          <span class="kcard-area">${esc(card.bereich||'—')}</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span class="kcard-status-badge ${card.status}" onclick="toggleQsDropdown(event,'${card.id}')">${statusLabel}</span>
+            ${due}
+          </div>
+        </div>`;
       el.addEventListener('click', () => openDrawer(card.id));
+
+      // Drag events
+      el.addEventListener('dragstart', e => {
+        e.dataTransfer.setData('cardId', card.id);
+        setTimeout(() => el.classList.add('dragging'), 0);
+      });
+      el.addEventListener('dragend', () => el.classList.remove('dragging'));
       body.appendChild(el);
     });
 
@@ -827,7 +933,77 @@ function render() {
     addBtn.textContent = '+ Vorgang';
     addBtn.addEventListener('click', () => openNewModal(col.id));
     body.appendChild(addBtn);
+
+    // Drop-Zone Events
+    body.addEventListener('dragover', e => { e.preventDefault(); body.classList.add('drag-over'); });
+    body.addEventListener('dragleave', () => body.classList.remove('drag-over'));
+    body.addEventListener('drop', e => {
+      e.preventDefault();
+      body.classList.remove('drag-over');
+      const id = e.dataTransfer.getData('cardId');
+      const card = cards.find(x => x.id === id);
+      if (!card || card.status === col.id) return;
+      const t = today();
+      const oldStatus = card.status;
+      card.status = col.id;
+      card.letzteUpdate = t;
+      card.log = `${t}: Status → ${col.id} (Drag & Drop)\n` + (card.log||'');
+      saveData();
+      render();
+    });
   });
+}
+
+// ═══════════════════════════════════════════════
+// QUICK-STATUS DROPDOWN
+// ═══════════════════════════════════════════════
+let activeQsDropdown = null;
+
+function toggleQsDropdown(e, cardId) {
+  e.stopPropagation();
+  // Existierendes schließen
+  if (activeQsDropdown) { activeQsDropdown.remove(); activeQsDropdown = null; return; }
+
+  const badge = e.currentTarget;
+  const card  = cards.find(x => x.id === cardId);
+  if (!card) return;
+
+  const dd = document.createElement('div');
+  dd.className = 'qs-dropdown';
+
+  const statusList = ['eingang','jetzt','warten','erledigt','parken'];
+  const labels     = {eingang:'Eingang',jetzt:'Jetzt',warten:'Warten',erledigt:'Erledigt',parken:'Parken'};
+
+  statusList.forEach(s => {
+    const btn = document.createElement('button');
+    btn.className = 'qs-option' + (s === card.status ? ' active' : '');
+    btn.textContent = labels[s];
+    btn.addEventListener('click', ev => {
+      ev.stopPropagation();
+      if (s !== card.status) {
+        const t = today();
+        card.log = `${t}: Status → ${s}\n` + (card.log||'');
+        card.status = s;
+        card.letzteUpdate = t;
+        saveData();
+        render();
+      }
+      dd.remove(); activeQsDropdown = null;
+    });
+    dd.appendChild(btn);
+  });
+
+  badge.style.position = 'relative';
+  badge.appendChild(dd);
+  activeQsDropdown = dd;
+
+  // Außerhalb klicken schließt Dropdown
+  setTimeout(() => {
+    document.addEventListener('click', function closeDd() {
+      dd.remove(); activeQsDropdown = null;
+      document.removeEventListener('click', closeDd);
+    }, { once: true });
+  }, 0);
 }
 
 // ═══════════════════════════════════════════════
@@ -916,11 +1092,17 @@ function openDrawer(id) {
     : '—';
   const badgeClass = {eingang:'badge-eingang',jetzt:'badge-jetzt',warten:'badge-warten',erledigt:'badge-erledigt',parken:'badge-parken'}[c.status]||'badge-eingang';
   const statusLabel = {eingang:'Eingang',jetzt:'Jetzt',warten:'Warten',erledigt:'Erledigt',parken:'Parken'}[c.status];
-  const logLines = (c.log||'').split('\n').filter(Boolean).map(l => {
+  const logLines = (c.log||'').split('\n').filter(Boolean).map((l, idx) => {
     const m = l.match(/^(\d{4}-\d{2}-\d{2}):\s*(.+)$/);
-    return m
-      ? `<div class="log-entry"><span class="log-date">${m[1]}</span><span class="log-text">${esc(m[2])}</span></div>`
-      : `<div class="log-entry"><span class="log-text">${esc(l)}</span></div>`;
+    const dateSpan = m ? `<span class="log-date">${m[1]}</span>` : '';
+    const textSpan = `<span class="log-text">${esc(m ? m[2] : l)}</span>`;
+    return `<div class="log-entry">
+      <div class="log-entry-content">${dateSpan}${textSpan}</div>
+      <div class="log-entry-actions">
+        <button class="log-entry-btn" onclick="editLogEntry(event,${idx})">✎</button>
+        <button class="log-entry-btn del" onclick="deleteLogEntry(${idx})">✕</button>
+      </div>
+    </div>`;
   }).join('');
 
   document.getElementById('drawerBody').innerHTML = `
@@ -969,6 +1151,61 @@ function markErledigt() {
   c.status='erledigt'; c.letzteUpdate=t;
   c.log=`${t}: Erledigt markiert\n`+(c.log||'');
   saveData(); closeDrawer(); render();
+}
+
+function editLogEntry(e, idx) {
+  e.stopPropagation();
+  const c = cards.find(x => x.id === drawerCardId);
+  if (!c) return;
+  const lines = (c.log||'').split('\n').filter(Boolean);
+  if (idx >= lines.length) return;
+
+  const entryDiv = e.currentTarget.closest('.log-entry');
+  const content  = entryDiv.querySelector('.log-entry-content');
+  const actions  = entryDiv.querySelector('.log-entry-actions');
+
+  // Aktuellen Text extrahieren (ohne Datum-Prefix)
+  const m = lines[idx].match(/^(\d{4}-\d{2}-\d{2}):\s*(.+)$/);
+  const currentText = m ? m[2] : lines[idx];
+  const prefix      = m ? m[1] + ': ' : '';
+
+  // Input-Feld einblenden
+  const input = document.createElement('input');
+  input.type  = 'text';
+  input.className = 'log-edit-input';
+  input.value = currentText;
+  content.appendChild(input);
+  input.focus();
+  actions.style.opacity = '1';
+
+  // Speichern-Button tauschen
+  const editBtn = e.currentTarget;
+  editBtn.textContent = '✓';
+  editBtn.onclick = null;
+  editBtn.addEventListener('click', ev => {
+    ev.stopPropagation();
+    const newText = input.value.trim();
+    if (newText) lines[idx] = prefix + newText;
+    c.log = lines.join('\n');
+    c.letzteUpdate = today();
+    saveData();
+    openDrawer(drawerCardId);
+  });
+  input.addEventListener('keydown', ev => {
+    if (ev.key === 'Enter')  editBtn.click();
+    if (ev.key === 'Escape') openDrawer(drawerCardId);
+  });
+}
+
+function deleteLogEntry(idx) {
+  const c = cards.find(x => x.id === drawerCardId);
+  if (!c) return;
+  const lines = (c.log||'').split('\n').filter(Boolean);
+  lines.splice(idx, 1);
+  c.log = lines.join('\n');
+  c.letzteUpdate = today();
+  saveData();
+  openDrawer(drawerCardId);
 }
 
 function addLogEntry() {
