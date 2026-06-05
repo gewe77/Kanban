@@ -1,0 +1,17 @@
+{
+  "name": "Betriebsführungssystem",
+  "short_name": "Betrieb",
+  "description": "Kanban + Vorgangsmanagement für Betriebsingenieure",
+  "display": "standalone",
+  "orientation": "any",
+  "start_url": "./index.html",
+  "background_color": "#14161a",
+  "theme_color": "#1a1a18",
+  "icons": [
+    {
+      "src": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTIgMTkyIj48cmVjdCB3aWR0aD0iMTkyIiBoZWlnaHQ9IjE5MiIgZmlsbD0iIzE0MTYxYSIvPjx0ZXh0IHg9Ijk2IiB5PSIxMTAiIGZvbnQtZmFtaWx5PSJtb25vc3BhY2UiIGZvbnQtc2l6ZT0iNjAiIGZvbnQtd2VpZ2h0PSI3MDAiIGZpbGw9IiNjMDdjMTAiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkI8L3RleHQ+PC9zdmc+",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    }
+  ]
+}
