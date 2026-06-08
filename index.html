@@ -27,6 +27,7 @@
   <nav class="nav-tabs">
     <button class="nav-tab active" data-tab="kanban">⬛ Kanban</button>
     <button class="nav-tab" data-tab="vorgaenge">▤ Vorgänge</button>
+    <button class="nav-tab" data-tab="einstellungen">⚙ Einstellungen</button>
   </nav>
   
   <div class="header-right">
@@ -211,6 +212,98 @@
       </div>
     </div>
 
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     TAB 3: EINSTELLUNGEN
+═══════════════════════════════════════════════ -->
+<div class="tab-container" id="einstellungen-tab">
+  <div class="einstellungen-wrap">
+    
+    <div class="einstellungen-header">
+      <h2>⚙ Stammdaten-Verwaltung</h2>
+      <p>Verwalte Anlagen, Kategorien und Verantwortliche zentral. 
+         Änderungen werden sofort in allen Vorgangs-Formularen wirksam.</p>
+    </div>
+
+    <div class="einstellungen-hint">
+      <span class="einstellungen-hint-icon">💡</span>
+      <div>
+        <strong>Hinweis:</strong> Stammdaten werden in Firestore gespeichert (separate Collection). 
+        Beim Löschen werden bereits zugeordnete Vorgänge nicht beeinflusst, aber der gelöschte Eintrag 
+        steht für neue Vorgänge nicht mehr zur Auswahl.
+      </div>
+    </div>
+
+    <!-- Anlagen / Liegenschaften -->
+    <div class="stammdaten-section">
+      <div class="stammdaten-section-header">
+        <div class="stammdaten-section-title">📦 Anlagen / Liegenschaften</div>
+        <div class="stammdaten-section-meta">Hauptkategorie</div>
+      </div>
+      <div class="stammdaten-list" id="anlagenList">
+        <!-- Dynamisch gefüllt -->
+      </div>
+      <div class="stammdaten-section-add">
+        <button class="btn btn-primary" onclick="openStammdatumModal('anlagen')">+ Neue Anlage</button>
+      </div>
+    </div>
+
+    <!-- Kategorien -->
+    <div class="stammdaten-section">
+      <div class="stammdaten-section-header">
+        <div class="stammdaten-section-title">🏷️ Kategorien</div>
+        <div class="stammdaten-section-meta">Vorgangs-Typ</div>
+      </div>
+      <div class="stammdaten-list" id="kategorienList">
+        <!-- Dynamisch gefüllt -->
+      </div>
+      <div class="stammdaten-section-add">
+        <button class="btn btn-primary" onclick="openStammdatumModal('kategorien')">+ Neue Kategorie</button>
+      </div>
+    </div>
+
+    <!-- Verantwortliche -->
+    <div class="stammdaten-section">
+      <div class="stammdaten-section-header">
+        <div class="stammdaten-section-title">👤 Verantwortliche</div>
+        <div class="stammdaten-section-meta">Personen / Stellen</div>
+      </div>
+      <div class="stammdaten-list" id="verantwortlicheList">
+        <!-- Dynamisch gefüllt -->
+      </div>
+      <div class="stammdaten-section-add">
+        <button class="btn btn-primary" onclick="openStammdatumModal('verantwortliche')">+ Neue/r Verantwortliche/r</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     STAMMDATUM MODAL
+═══════════════════════════════════════════════ -->
+<div class="modal-overlay" id="stammdatumModalOverlay" onclick="closeStammdatumModalIfBg(event)">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title" id="stammdatumModalTitle">Neues Stammdatum</span>
+      <button class="btn" onclick="closeStammdatumModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label class="field-label">Name <span class="req">*</span></label>
+        <input type="text" id="sName" placeholder="z.B. RTG, Wartung, Meisterbereich">
+      </div>
+      <div class="field" id="sDescriptionField" style="display:none">
+        <label class="field-label">Beschreibung (optional)</label>
+        <input type="text" id="sDescription" placeholder="z.B. Rückkühltürme Gebäude X, Halle 3">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeStammdatumModal()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveStammdatum()">Speichern →</button>
+    </div>
   </div>
 </div>
 
@@ -439,6 +532,7 @@
 <script src="js/common.js"></script>
 <script src="js/kanban.js"></script>
 <script src="js/vorgaenge.js"></script>
+<script src="js/einstellungen.js"></script>
 <script src="js/app.js"></script>
 
 </body>
