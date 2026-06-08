@@ -92,72 +92,227 @@ function generateVorgangsNr() {
 }
 
 // ═══════════════════════════════════════════════
-// HEUTE-LISTE
+// MORNING WORKFLOW (Heute-Liste)
+// 
+// Sequenzielles Layout für die Tagesabarbeitung:
+//   Step 1: Triage neuer Vorgänge (Bewertung)
+//   Step 2: Wiedervorlagen heute (Nachfassen)
+//   Step 3: Kritische Vorgänge (Status-Check)
+//   Step 4: Fristen diese Woche (Vorausschauen)
+//   Done:   Heute bereits erledigt (Erfolg)
 // ═══════════════════════════════════════════════
+
+// Kollabierte Steps merken (UI-State)
+let collapsedSteps = JSON.parse(localStorage.getItem('workflow_collapsed') || '[]');
+
 function renderHeuteListe() {
   const t = today();
   const vorgaenge = window.vorgaenge;
   
-  // 1. Wiedervorlagen heute
-  const wiedervorlage = vorgaenge.filter(v => 
-    v.wiedervorlage === t && v.status !== 'erledigt' && v.status !== 'archiviert'
-  );
-  renderHeuteSection('wiedervorlageList', 'wiedervorlageCount', wiedervorlage);
+  // Schritt 1: Neue / Ungeprüfte (Triage)
+  const step1Items = vorgaenge.filter(v => v.status === 'neu');
   
-  // 2. Fristen diese Woche (≤7 Tage, nicht erledigt)
-  const fristen = vorgaenge.filter(v => {
+  // Schritt 2: Wiedervorlagen heute
+  const step2Items = vorgaenge.filter(v => 
+    v.wiedervorlage === t && 
+    v.status !== 'erledigt' && 
+    v.status !== 'archiviert'
+  );
+  
+  // Schritt 3: Kritische Vorgänge (Prio A, nicht erledigt)
+  const step3Items = vorgaenge.filter(v => 
+    v.prioritaet === 'A' && 
+    !['erledigt', 'archiviert'].includes(v.status)
+  );
+  
+  // Schritt 4: Fristen diese Woche (≤7 Tage)
+  const step4Items = vorgaenge.filter(v => {
     if (!v.frist || v.status === 'erledigt' || v.status === 'archiviert') return false;
     const days = daysUntil(v.frist);
     return days >= 0 && days <= 7;
   });
-  renderHeuteSection('fristenList', 'fristenCount', fristen);
   
-  // 3. Kritische Vorgänge (Priorität A, nicht erledigt)
-  const kritisch = vorgaenge.filter(v => 
-    v.prioritaet === 'A' && 
-    !['erledigt', 'archiviert'].includes(v.status)
+  // Done: Heute erledigt
+  const doneItems = vorgaenge.filter(v => 
+    v.status === 'erledigt' && 
+    v.letzteAktivitaet === t
   );
-  renderHeuteSection('kritischList', 'kritischCount', kritisch);
   
-  // 4. Neue / Ungeprüfte
-  const neu = vorgaenge.filter(v => v.status === 'neu');
-  renderHeuteSection('neuList', 'neuCount', neu);
+  // Workflow-Header (Progress-Übersicht)
+  renderWorkflowHeader([step1Items, step2Items, step3Items, step4Items]);
+  
+  // Steps rendern
+  renderWorkflowStep(1, step1Items);
+  renderWorkflowStep(2, step2Items);
+  renderWorkflowStep(3, step3Items);
+  renderWorkflowStep(4, step4Items);
+  renderDoneStack(doneItems);
 }
 
-function renderHeuteSection(containerId, countId, items) {
-  const container = document.getElementById(containerId);
-  const countSpan = document.getElementById(countId);
-  if (!container || !countSpan) return;
+function renderWorkflowHeader(allSteps) {
+  const header = document.getElementById('workflowHeader');
+  if (!header) return;
   
-  countSpan.textContent = items.length;
+  const totalItems = allSteps.reduce((sum, items) => sum + items.length, 0);
+  const completedSteps = allSteps.filter(items => items.length === 0).length;
+  
+  // Geschätzte Zeit: 2-3 min pro Vorgang + Basisaufwand
+  const estimatedMinutes = totalItems === 0 ? 0 : Math.max(5, Math.min(30, totalItems * 2));
+  
+  const progressDots = allSteps.map((items, idx) => {
+    const status = items.length === 0 ? 'done' : (idx === 0 ? 'active' : '');
+    return `<div class="workflow-progress-step ${status}"></div>`;
+  }).join('');
+  
+  header.innerHTML = `
+    <div class="workflow-header-left">
+      <span class="workflow-header-icon">☀</span>
+      <div>
+        <div class="workflow-header-title">Morgen-Routine</div>
+        <div class="workflow-header-time">
+          ${totalItems === 0 
+            ? 'Alles erledigt — frischer Tag' 
+            : `${totalItems} Vorgänge offen · ca. ${estimatedMinutes} min`
+          }
+        </div>
+      </div>
+    </div>
+    <div class="workflow-progress" title="Fortschritt: ${completedSteps}/4 Schritte erledigt">
+      ${progressDots}
+    </div>
+  `;
+}
+
+function renderWorkflowStep(stepNum, items) {
+  const stepEl = document.getElementById(`step${stepNum}`);
+  if (!stepEl) return;
+  
+  // Counter
+  const countEl = stepEl.querySelector('.workflow-step-count');
+  if (countEl) {
+    countEl.textContent = items.length;
+    countEl.className = 'workflow-step-count';
+    if (items.length > 0) {
+      countEl.classList.add(stepNum === 3 ? 'urgent' : 'has-items');
+    }
+  }
+  
+  // Collapsed-State wiederherstellen
+  const isCollapsed = collapsedSteps.includes(stepNum);
+  stepEl.classList.toggle('collapsed', isCollapsed);
+  
+  // Content
+  const contentEl = stepEl.querySelector('.workflow-step-content');
+  if (!contentEl) return;
   
   if (!items.length) {
-    container.innerHTML = '<div class="heute-empty">— keine Einträge —</div>';
+    contentEl.innerHTML = '<div class="workflow-empty">Erledigt — nichts zu tun</div>';
+    stepEl.classList.add('completed');
     return;
   }
   
-  // Sortieren nach Priorität
+  stepEl.classList.remove('completed');
+  
+  // Sortieren nach Priorität (A vor B vor C), dann nach Frist
   items.sort((a, b) => {
     const order = { 'A': 0, 'B': 1, 'C': 2 };
-    return (order[a.prioritaet] || 9) - (order[b.prioritaet] || 9);
+    const pa = order[a.prioritaet] ?? 9;
+    const pb = order[b.prioritaet] ?? 9;
+    if (pa !== pb) return pa - pb;
+    return daysUntil(a.frist) - daysUntil(b.frist);
   });
   
-  container.innerHTML = items.map(v => {
-    const overdue = v.frist && daysUntil(v.frist) < 0;
-    const prioClass = v.prioritaet ? `prio-${v.prioritaet.toLowerCase()}` : '';
-    
-    return `
-      <div class="heute-item ${prioClass} ${overdue ? 'urgent' : ''}" onclick="openVorgangDrawer('${v.id}')">
-        <div class="heute-item-title">${esc(v.thema)}</div>
-        <div class="heute-item-meta">
-          <span><strong>${esc(v.vorgangsNr)}</strong></span>
-          <span>${esc(v.anlage)}</span>
-          <span class="${overdue ? 'urgent' : ''}">${v.frist ? (overdue ? '⚠ ' : '') + fmt(v.frist) : '—'}</span>
-          <span>${esc(v.verantwortlich)}</span>
-        </div>
+  contentEl.innerHTML = `
+    <div class="workflow-step-content-grid">
+      ${items.map(v => renderWorkflowItem(v)).join('')}
+    </div>
+  `;
+}
+
+function renderWorkflowItem(v) {
+  const overdue = v.frist && daysUntil(v.frist) < 0;
+  const days = v.frist ? daysUntil(v.frist) : null;
+  const prioClass = v.prioritaet ? `prio-${v.prioritaet.toLowerCase()}` : '';
+  
+  let fristText = '—';
+  let fristClass = '';
+  if (v.frist) {
+    if (overdue) {
+      fristText = `⚠ überfällig ${Math.abs(days)}d`;
+      fristClass = 'urgent';
+    } else if (days === 0) {
+      fristText = 'heute fällig';
+      fristClass = 'urgent';
+    } else if (days <= 3) {
+      fristText = `in ${days}d (${fmt(v.frist)})`;
+      fristClass = 'amber';
+    } else {
+      fristText = `in ${days}d`;
+    }
+  }
+  
+  return `
+    <div class="workflow-item ${prioClass} ${overdue ? 'overdue' : ''}" 
+         onclick="openVorgangDrawer('${v.id}')">
+      <div class="workflow-item-title">
+        <span class="workflow-item-title-text">${esc(v.thema)}</span>
+        <span class="workflow-item-prio ${v.prioritaet.toLowerCase()}">${v.prioritaet}</span>
       </div>
-    `;
-  }).join('');
+      <div class="workflow-item-meta">
+        <span class="workflow-item-anlage">${esc(v.anlage)} · ${esc(v.vorgangsNr)}</span>
+        <span class="workflow-item-frist ${fristClass}">${fristText}</span>
+      </div>
+    </div>
+  `;
+}
+
+function renderDoneStack(items) {
+  const stepEl = document.getElementById('stepDone');
+  if (!stepEl) return;
+  
+  const countEl = stepEl.querySelector('.workflow-step-count');
+  if (countEl) {
+    countEl.textContent = items.length;
+    countEl.className = 'workflow-step-count' + (items.length > 0 ? ' has-items' : '');
+  }
+  
+  const contentEl = stepEl.querySelector('.workflow-step-content');
+  if (!contentEl) return;
+  
+  if (!items.length) {
+    contentEl.innerHTML = '<div class="workflow-empty" style="padding:14px">Noch nichts erledigt heute</div>';
+    contentEl.querySelector('.workflow-empty').style.color = 'var(--text3)';
+    return;
+  }
+  
+  contentEl.innerHTML = `
+    <div class="workflow-done-stack">
+      ${items.map(v => `
+        <div class="workflow-done-item" onclick="openVorgangDrawer('${v.id}')" 
+             title="${esc(v.vorgangsNr)} · ${esc(v.anlage)}">
+          ${esc(v.thema)}
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+// Collapse/Expand
+function toggleWorkflowStep(stepNum) {
+  const stepEl = document.getElementById(`step${stepNum}`) || document.getElementById('stepDone');
+  if (!stepEl) return;
+  
+  const isCollapsed = stepEl.classList.toggle('collapsed');
+  
+  if (stepNum === 'done') return; // Done-Stack speichern wir nicht
+  
+  if (isCollapsed && !collapsedSteps.includes(stepNum)) {
+    collapsedSteps.push(stepNum);
+  } else if (!isCollapsed) {
+    collapsedSteps = collapsedSteps.filter(s => s !== stepNum);
+  }
+  
+  localStorage.setItem('workflow_collapsed', JSON.stringify(collapsedSteps));
 }
 
 // ═══════════════════════════════════════════════
@@ -247,7 +402,7 @@ function setVorgaengeView(view) {
     b.classList.toggle('active', b.getAttribute('data-view') === view);
   });
   
-  document.getElementById('heute-view').style.display = view === 'heute' ? 'grid' : 'none';
+  document.getElementById('heute-view').style.display = view === 'heute' ? 'flex' : 'none';
   document.getElementById('all-view').style.display = view === 'all' ? 'block' : 'none';
   
   if (view === 'all') {
@@ -505,3 +660,4 @@ window.changeVorgangStatus = changeVorgangStatus;
 window.addVorgangLog = addVorgangLog;
 window.deleteVorgang = deleteVorgang;
 window.setupVorgaengeFilters = setupVorgaengeFilters;
+window.toggleWorkflowStep = toggleWorkflowStep;
