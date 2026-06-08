@@ -59,12 +59,17 @@ onAuthStateChanged(auth, user => {
   if (user) {
     if (typeof loadFromFirestore === 'function') loadFromFirestore();
     if (typeof loadVorgaengeFromFirestore === 'function') loadVorgaengeFromFirestore();
+    if (typeof loadStammdatenFromFirestore === 'function') loadStammdatenFromFirestore();
   } else {
     if (typeof render === 'function') { 
       window.cards = loadLocalDataKanban(); 
       window.vorgaenge = loadLocalDataVorgaenge();
+      if (typeof loadLocalStammdaten === 'function') {
+        window.stammdaten = loadLocalStammdaten();
+      }
       render(); 
       if (typeof renderVorgaengeTab === 'function') renderVorgaengeTab();
+      if (typeof refreshDropdowns === 'function') refreshDropdowns();
     }
   }
 });

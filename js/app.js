@@ -33,6 +33,8 @@ function switchTab(tabName) {
     if (typeof render === 'function') render();
   } else if (tabName === 'vorgaenge') {
     if (typeof renderVorgaengeTab === 'function') renderVorgaengeTab();
+  } else if (tabName === 'einstellungen') {
+    if (typeof renderEinstellungenTab === 'function') renderEinstellungenTab();
   }
   
   // Persist active tab
@@ -107,6 +109,7 @@ function init() {
   // Lokale Daten laden (Fallback bis Firebase antwortet)
   window.cards = loadLocalDataKanban();
   window.vorgaenge = loadLocalDataVorgaenge();
+  window.stammdaten = loadLocalStammdaten();
   
   // UI Setup
   setupTabs();
@@ -120,6 +123,7 @@ function init() {
   // Initial render
   if (typeof render === 'function') render();
   if (typeof renderVorgaengeTab === 'function') renderVorgaengeTab();
+  if (typeof refreshDropdowns === 'function') refreshDropdowns();
   
   // Restore last active tab (default: kanban)
   const lastTab = localStorage.getItem('activeTab') || 'kanban';
@@ -127,6 +131,7 @@ function init() {
   
   console.log(`✓ Kanban: ${window.cards.length} Karten`);
   console.log(`✓ Vorgänge: ${window.vorgaenge.length} Vorgänge`);
+  console.log(`✓ Stammdaten geladen (lokal)`);
 }
 
 // Auth-UI initial setzen
