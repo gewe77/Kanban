@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1a1a18">
+<title>Betriebsführung — Kanban & Vorgänge</title>
+
+<!-- PWA Manifest -->
+<link rel="manifest" href="manifest.json">
+
+<!-- Stylesheet -->
+<link rel="stylesheet" href="css/styles.css">
+
+<!-- ═══ FIREBASE SDK ═══ -->
+<script type="module" src="js/firebase-config.js"></script>
+
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════
+     HEADER MIT TAB-NAVIGATION
+═══════════════════════════════════════════════ -->
+<header>
+  <div class="logo">BETRIEB <span>&amp;</span> FÜHRUNG</div>
+  
+  <nav class="nav-tabs">
+    <button class="nav-tab active" data-tab="kanban">⬛ Kanban</button>
+    <button class="nav-tab" data-tab="vorgaenge">▤ Vorgänge</button>
+  </nav>
+  
+  <div class="header-right">
+    <span class="wip-status btn-kanban-only" id="wipStatus">WIP: — / 3</span>
+    <button class="btn btn-auth-off" id="authBtn" onclick="handleAuth()">○ Anmelden</button>
+    <button class="btn btn-kanban-only" onclick="openReview()">⬡ Weekly Review</button>
+    <button class="btn btn-primary btn-kanban-only" onclick="openNewModal()">+ Neuer Vorgang</button>
+    <button class="btn btn-primary btn-vorgaenge-only" onclick="openNewVorgangModal()" style="display:none">+ Neuer Vorgang</button>
+  </div>
+</header>
+
+<!-- ═══════════════════════════════════════════════
+     DATEBAR
+═══════════════════════════════════════════════ -->
+<div class="datebar">
+  <span class="datebar-item" id="datebarToday"></span>
+  <span style="color:var(--line2)">|</span>
+  <span class="datebar-item" id="datebarSync">
+    <span class="sync-dot" id="syncDot"></span><span id="syncText">Lokal</span>
+  </span>
+  <span style="color:var(--line2)">|</span>
+  <span class="datebar-item red"   id="datebarOverdue"></span>
+  <span class="datebar-item amber" id="datebarDueSoon"></span>
+  <span class="datebar-item"       id="datebarWaiting"></span>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     TAB 1: KANBAN BOARD
+═══════════════════════════════════════════════ -->
+<div class="tab-container active" id="kanban-tab">
+  <div class="board-wrap">
+    <div class="board" id="board"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     TAB 2: VORGÄNGE BOARD
+═══════════════════════════════════════════════ -->
+<div class="tab-container" id="vorgaenge-tab">
+  <div class="vorgaenge-wrap">
+    
+    <div class="vorgaenge-header">
+      <h2>Vorgangsmanagement <span id="vorgaengeCount" style="color:var(--text3);font-size:11px">(0)</span></h2>
+      <div class="view-toggle">
+        <button class="view-btn active" data-view="heute">Heute</button>
+        <button class="view-btn" data-view="all">Register</button>
+      </div>
+    </div>
+
+    <!-- ═══ HEUTE-VIEW: MORNING WORKFLOW ═══ -->
+    <div id="heute-view" class="morning-workflow">
+      
+      <!-- Header mit Progress -->
+      <div class="workflow-header" id="workflowHeader">
+        <!-- Dynamisch gefüllt -->
+      </div>
+
+      <!-- Schritt 1: Triage neuer Vorgänge -->
+      <div class="workflow-step" data-step="1" id="step1">
+        <div class="workflow-step-header" onclick="toggleWorkflowStep(1)">
+          <div class="workflow-step-number">1</div>
+          <div class="workflow-step-title-area">
+            <div class="workflow-step-title">📥 Neue / Ungeprüfte — Triage</div>
+            <div class="workflow-step-subtitle">Was ist es? Wer macht es? Wann?</div>
+          </div>
+          <div class="workflow-step-count">0</div>
+          <div class="workflow-step-toggle">▾</div>
+        </div>
+        <div class="workflow-step-content"></div>
+      </div>
+
+      <!-- Schritt 2: Wiedervorlagen -->
+      <div class="workflow-step" data-step="2" id="step2">
+        <div class="workflow-step-header" onclick="toggleWorkflowStep(2)">
+          <div class="workflow-step-number">2</div>
+          <div class="workflow-step-title-area">
+            <div class="workflow-step-title">⏰ Wiedervorlagen heute — Nachfassen</div>
+            <div class="workflow-step-subtitle">Wer hat sich gemeldet? Wer nicht?</div>
+          </div>
+          <div class="workflow-step-count">0</div>
+          <div class="workflow-step-toggle">▾</div>
+        </div>
+        <div class="workflow-step-content"></div>
+      </div>
+
+      <!-- Schritt 3: Kritische Vorgänge -->
+      <div class="workflow-step" data-step="3" id="step3">
+        <div class="workflow-step-header" onclick="toggleWorkflowStep(3)">
+          <div class="workflow-step-number">3</div>
+          <div class="workflow-step-title-area">
+            <div class="workflow-step-title">🔴 Kritische Vorgänge — Status-Check</div>
+            <div class="workflow-step-subtitle">Voranbringen? Eskalieren? Blockaden?</div>
+          </div>
+          <div class="workflow-step-count">0</div>
+          <div class="workflow-step-toggle">▾</div>
+        </div>
+        <div class="workflow-step-content"></div>
+      </div>
+
+      <!-- Schritt 4: Fristen diese Woche -->
+      <div class="workflow-step" data-step="4" id="step4">
+        <div class="workflow-step-header" onclick="toggleWorkflowStep(4)">
+          <div class="workflow-step-number">4</div>
+          <div class="workflow-step-title-area">
+            <div class="workflow-step-title">📅 Fristen diese Woche — Vorausschauen</div>
+            <div class="workflow-step-subtitle">Was kommt? Was vorbereiten?</div>
+          </div>
+          <div class="workflow-step-count">0</div>
+          <div class="workflow-step-toggle">▾</div>
+        </div>
+        <div class="workflow-step-content"></div>
+      </div>
+
+      <!-- Done-Stack: Erfolg sichtbar machen -->
+      <div class="workflow-step" data-step="done" id="stepDone">
+        <div class="workflow-step-header" onclick="toggleWorkflowStep('done')">
+          <div class="workflow-step-number">✓</div>
+          <div class="workflow-step-title-area">
+            <div class="workflow-step-title">✅ Heute erledigt</div>
+            <div class="workflow-step-subtitle">Erfolgs-Stack — sichtbar machen, was geschafft wurde</div>
+          </div>
+          <div class="workflow-step-count">0</div>
+          <div class="workflow-step-toggle">▾</div>
+        </div>
+        <div class="workflow-step-content"></div>
+      </div>
+
+    </div>
+
+    <!-- ═══ VORGANGS-REGISTER ═══ -->
+    <div id="all-view" class="vorgaenge-tabelle" style="display:none">
+      
+      <div class="vorgaenge-filters">
+        <input type="text" class="filter-input" id="filterThema" placeholder="🔍 Thema suchen…" style="flex:1;min-width:160px">
+        <select class="filter-select" id="filterStatus">
+          <option value="">Alle Status</option>
+          <option value="neu">Neu</option>
+          <option value="bewertet">Bewertet</option>
+          <option value="inbearbeitung">In Bearbeitung</option>
+          <option value="wartet-firma">Wartet Firma</option>
+          <option value="wartet-intern">Wartet Intern</option>
+          <option value="entscheidung">Entscheidung</option>
+          <option value="erledigt">Erledigt</option>
+        </select>
+        <select class="filter-select" id="filterPrio">
+          <option value="">Alle Prioritäten</option>
+          <option value="A">A — Kritisch</option>
+          <option value="B">B — Wichtig</option>
+          <option value="C">C — Normal</option>
+        </select>
+        <select class="filter-select" id="filterAnlage">
+          <option value="">Alle Anlagen</option>
+          <option value="RTG">RTG</option>
+          <option value="PLH">PLH</option>
+          <option value="MHKW">MHKW</option>
+          <option value="Tankanlage">Tankanlage</option>
+          <option value="GA">GA</option>
+          <option value="Sonstige">Sonstige</option>
+        </select>
+      </div>
+      
+      <div class="vorgaenge-table-header">
+        <div>Vorg.-Nr</div>
+        <div>Anlage</div>
+        <div>Thema</div>
+        <div>Prio</div>
+        <div>Status</div>
+        <div>Frist</div>
+        <div>Verantw.</div>
+      </div>
+      
+      <div class="vorgaenge-list" id="vorgaengeList">
+        <div class="empty">— Klicke "Neuer Vorgang" zum Anlegen —</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     KANBAN MODAL (NEU / BEARBEITEN)
+═══════════════════════════════════════════════ -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModalIfBg(event)">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title" id="modalTitle">Neuer Vorgang</span>
+      <button class="btn" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label class="field-label">Thema / Titel <span class="req">*</span></label>
+        <input type="text" id="fThema" placeholder="z.B. Druckprüfung Druckluft Süd">
+      </div>
+      <div class="field-row2">
+        <div class="field">
+          <label class="field-label">Bereich / Ort</label>
+          <input type="text" id="fBereich" placeholder="z.B. Energie, Lüftung">
+        </div>
+        <div class="field">
+          <label class="field-label">Status</label>
+          <select id="fStatus">
+            <option value="eingang">Eingang</option>
+            <option value="jetzt">Jetzt</option>
+            <option value="warten">Warten</option>
+            <option value="erledigt">Erledigt</option>
+            <option value="parken">Parken</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">Zeitfokus</label>
+        <select id="fZeitfokus">
+          <option value="Sofort">Sofort</option>
+          <option value="Heute">Heute</option>
+          <option value="Diese Woche" selected>Diese Woche</option>
+          <option value="Terminieren">Terminieren</option>
+          <option value="Kann warten">Kann warten</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label">Nächster Schritt <span class="req">*</span></label>
+        <textarea id="fNaechsterSchritt" placeholder="Beginnt mit Verb — z.B. Angebot anfordern bei Firma XY"></textarea>
+      </div>
+      <div class="field-row2">
+        <div class="field">
+          <label class="field-label">Fällig / Wiedervorlage</label>
+          <input type="date" id="fFaellig">
+        </div>
+        <div class="field">
+          <label class="field-label">Warten auf</label>
+          <input type="text" id="fWartenAuf" placeholder="Person / Stelle">
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">Nachweis / Referenz</label>
+        <input type="text" id="fNachweis" placeholder="Mailbetreff, Ticket, Dateiname — optional">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeModal()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveCard()">Speichern →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     KANBAN DETAIL DRAWER
+═══════════════════════════════════════════════ -->
+<div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-head" id="drawerHead">
+    <div class="drawer-head-title" id="drawerTitle"></div>
+    <div class="drawer-head-actions">
+      <button class="btn btn-success" onclick="markErledigt()">✓ Erledigt</button>
+      <button class="btn" onclick="editFromDrawer()">Bearbeiten</button>
+      <button class="btn btn-danger" onclick="confirmDelete()">Löschen</button>
+      <button class="btn" onclick="closeDrawer()">✕</button>
+    </div>
+  </div>
+  <div class="drawer-body" id="drawerBody"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     CONFIRM DELETE
+═══════════════════════════════════════════════ -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-box">
+    <div class="confirm-title">Vorgang löschen?</div>
+    <div class="confirm-text" id="confirmText"></div>
+    <div class="confirm-actions">
+      <button class="btn" onclick="closeConfirm()">Abbrechen</button>
+      <button class="btn btn-danger" onclick="doDelete()">Löschen</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     WEEKLY REVIEW
+═══════════════════════════════════════════════ -->
+<div class="review-overlay" id="reviewOverlay" onclick="closeReviewIfBg(event)">
+  <div class="review-box">
+    <div class="review-head">
+      <span class="modal-title">⬡ Weekly Review</span>
+      <button class="btn" onclick="closeReview()">✕</button>
+    </div>
+    <div class="review-body" id="reviewBody"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     VORGÄNGE: NEUER VORGANG MODAL
+═══════════════════════════════════════════════ -->
+<div class="modal-overlay" id="vorgangModalOverlay" onclick="closeVorgangModalIfBg(event)">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title">Neuer Vorgang</span>
+      <button class="btn" onclick="closeNewVorgangModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      
+      <div class="field-row2">
+        <div class="field">
+          <label class="field-label">Anlage <span class="req">*</span></label>
+          <select id="vAnlage">
+            <option value="">— Wählen —</option>
+            <option value="RTG">RTG</option>
+            <option value="PLH">PLH</option>
+            <option value="MHKW">MHKW</option>
+            <option value="Tankanlage">Tankanlage</option>
+            <option value="GA">GA</option>
+            <option value="Sonstige">Sonstige</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label">Kategorie <span class="req">*</span></label>
+          <select id="vKategorie">
+            <option value="">— Wählen —</option>
+            <option value="Störung">Störung</option>
+            <option value="Wartung">Wartung</option>
+            <option value="Mangel">Mangel</option>
+            <option value="Vergabe">Vergabe</option>
+            <option value="Frist">Frist</option>
+            <option value="Dokumentation">Dokumentation</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="field">
+        <label class="field-label">Thema <span class="req">*</span></label>
+        <input type="text" id="vThema" placeholder="Kurze, prägnante Beschreibung">
+      </div>
+      
+      <div class="field-row2">
+        <div class="field">
+          <label class="field-label">Priorität <span class="req">*</span></label>
+          <select id="vPrioritaet">
+            <option value="C">C — Normal</option>
+            <option value="B">B — Wichtig</option>
+            <option value="A">A — Kritisch</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label">Verantwortlich <span class="req">*</span></label>
+          <select id="vVerantwortlich">
+            <option value="">— Wählen —</option>
+            <option value="Ich">Ich (GW)</option>
+            <option value="Meisterbereich">Meisterbereich</option>
+            <option value="Externe Firma">Externe Firma</option>
+            <option value="Leitung">Leitung</option>
+            <option value="Andere SB">Andere SB</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="field">
+        <label class="field-label">Nächster Schritt <span class="req">*</span></label>
+        <textarea id="vNaechsterSchritt" placeholder="Was ist konkret zu tun? (Verb-beginnend)"></textarea>
+      </div>
+      
+      <div class="field-row2">
+        <div class="field">
+          <label class="field-label">Frist (echte Deadline)</label>
+          <input type="date" id="vFrist">
+        </div>
+        <div class="field">
+          <label class="field-label">Wiedervorlage</label>
+          <input type="date" id="vWiedervorlage">
+        </div>
+      </div>
+      
+      <div class="field">
+        <label class="field-label">Nachweis / Referenz</label>
+        <input type="text" id="vNachweis" placeholder="z.B. Mail v. 5.6., OneNote §3.2, Ticket-Nr.">
+      </div>
+      
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeNewVorgangModal()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveNewVorgang()">Anlegen →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     VORGÄNGE: DETAIL DRAWER
+═══════════════════════════════════════════════ -->
+<div class="drawer-overlay" id="vDrawerOverlay" onclick="closeVorgangDrawer()"></div>
+<div class="drawer" id="vDrawer">
+  <div class="drawer-head">
+    <div class="drawer-head-title" id="vDrawerTitle"></div>
+    <div class="drawer-head-actions">
+      <button class="btn btn-danger" onclick="deleteVorgang()">Löschen</button>
+      <button class="btn" onclick="closeVorgangDrawer()">✕</button>
+    </div>
+  </div>
+  <div class="drawer-body" id="vDrawerBody"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     SCRIPTS
+═══════════════════════════════════════════════ -->
+<script src="js/common.js"></script>
+<script src="js/kanban.js"></script>
+<script src="js/vorgaenge.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>
