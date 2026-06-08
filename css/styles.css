@@ -1331,3 +1331,233 @@ btn, button { font-family: var(--sans); cursor: pointer; }
     gap: 12px;
   }
 }
+
+/* ═══════════════════════════════════════════════
+   AKTIV-VIEW (Kanban-Style für Vorgänge)
+═══════════════════════════════════════════════ */
+
+.aktiv-view {
+  display: none;
+  padding: 0;
+}
+
+.aktiv-view.active {
+  display: block;
+}
+
+.aktiv-board {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(180px, 1fr));
+  gap: 10px;
+  align-items: flex-start;
+  overflow-x: auto;
+  padding: 4px 0 16px 0;
+}
+
+.aktiv-col {
+  background: var(--el-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 10px;
+  min-height: 200px;
+  display: flex;
+  flex-direction: column;
+}
+
+.aktiv-col-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.aktiv-col-title {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text2);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.aktiv-col-title::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--col-accent, var(--text3));
+}
+
+.aktiv-col[data-status="neu"]            { --col-accent: var(--blue-light); }
+.aktiv-col[data-status="bewertet"]       { --col-accent: var(--amber-light); }
+.aktiv-col[data-status="inbearbeitung"]  { --col-accent: var(--amber); }
+.aktiv-col[data-status="wartet-firma"]   { --col-accent: var(--violet-light); }
+.aktiv-col[data-status="wartet-intern"]  { --col-accent: var(--violet); }
+.aktiv-col[data-status="entscheidung"]   { --col-accent: #d4900f; }
+.aktiv-col[data-status="parken"]         { --col-accent: var(--c-parken); }
+
+.aktiv-col-count {
+  background: var(--el-3);
+  color: var(--text3);
+  padding: 2px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 500;
+}
+
+.aktiv-col-count.has-items {
+  background: var(--el-4);
+  color: var(--text2);
+}
+
+.aktiv-col-count.warn {
+  background: var(--red-bg);
+  color: var(--red-light);
+  border-color: var(--red-rim);
+}
+
+.aktiv-col-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+}
+
+.aktiv-col-body.drag-over {
+  background: var(--amber-bg);
+  border-radius: 4px;
+  outline: 1px dashed var(--amber-rim);
+  outline-offset: -3px;
+}
+
+.aktiv-card {
+  background: var(--el-3);
+  border: 1px solid var(--line2);
+  border-radius: 4px;
+  padding: 8px 10px;
+  cursor: grab;
+  user-select: none;
+  transition: background 0.12s, border-color 0.12s, transform 0.1s;
+  border-left: 3px solid var(--text3);
+}
+
+.aktiv-card:hover {
+  background: var(--el-4);
+  border-color: var(--line3);
+}
+
+.aktiv-card:active {
+  cursor: grabbing;
+}
+
+.aktiv-card.dragging {
+  opacity: 0.4;
+}
+
+.aktiv-card.prio-a { border-left-color: var(--red-light); }
+.aktiv-card.prio-b { border-left-color: var(--amber-light); }
+.aktiv-card.prio-c { border-left-color: var(--blue-light); }
+
+.aktiv-card.overdue {
+  border-left-color: var(--red);
+  background: var(--red-bg);
+}
+
+.aktiv-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+  gap: 6px;
+}
+
+.aktiv-card-nr {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text3);
+  letter-spacing: 0.04em;
+}
+
+.aktiv-card-prio {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.aktiv-card-prio.a { background: var(--red-bg); color: var(--red-light); }
+.aktiv-card-prio.b { background: var(--amber-bg); color: var(--amber-light); }
+.aktiv-card-prio.c { background: var(--blue-bg); color: var(--blue-light); }
+
+.aktiv-card-title {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1.35;
+  margin-bottom: 6px;
+  word-wrap: break-word;
+}
+
+.aktiv-card-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text3);
+}
+
+.aktiv-card-anlage {
+  color: var(--text2);
+  font-weight: 500;
+}
+
+.aktiv-card-frist {
+  color: var(--text3);
+}
+
+.aktiv-card-frist.urgent {
+  color: var(--red-light);
+  font-weight: 500;
+}
+
+.aktiv-card-frist.amber {
+  color: var(--amber-light);
+}
+
+.aktiv-empty {
+  color: var(--text3);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-align: center;
+  padding: 12px 4px;
+  font-style: italic;
+}
+
+/* Mobile: Spalten untereinander */
+@media (max-width: 1024px) {
+  .aktiv-board {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .aktiv-board {
+    grid-template-columns: 1fr;
+  }
+}
