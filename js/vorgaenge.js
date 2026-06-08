@@ -316,7 +316,168 @@ function toggleWorkflowStep(stepNum) {
 }
 
 // ═══════════════════════════════════════════════
-// VORGANGS-REGISTER (Tabelle)
+// AKTIV-VIEW (Kanban-Style für Vorgänge)
+// ═══════════════════════════════════════════════
+const AKTIV_COLS = [
+  { id: 'neu',            label: 'Neu',           short: 'Triage' },
+  { id: 'bewertet',       label: 'Bewertet',      short: 'Eingeordnet' },
+  { id: 'inbearbeitung',  label: 'In Bearbeitung', short: 'Aktiv' },
+  { id: 'wartet-firma',   label: 'Wartet Firma',  short: 'Extern' },
+  { id: 'wartet-intern',  label: 'Wartet Intern', short: 'Intern' },
+  { id: 'entscheidung',   label: 'Entscheidung',  short: 'Zur Freigabe' },
+  { id: 'parken',         label: 'Parken',        short: 'Später' }
+];
+
+// WIP-Hinweise (Soft-Limits)
+const AKTIV_WIP = {
+  'inbearbeitung': 5,
+  'wartet-firma': 8,
+  'wartet-intern': 5
+};
+
+function renderAktivBoard() {
+  const board = document.getElementById('aktivBoard');
+  if (!board) return;
+  
+  board.innerHTML = AKTIV_COLS.map(col => {
+    const items = window.vorgaenge.filter(v => v.status === col.id);
+    
+    // Sortieren: Priorität → Frist
+    items.sort((a, b) => {
+      const order = { 'A': 0, 'B': 1, 'C': 2 };
+      const pa = order[a.prioritaet] ?? 9;
+      const pb = order[b.prioritaet] ?? 9;
+      if (pa !== pb) return pa - pb;
+      return daysUntil(a.frist) - daysUntil(b.frist);
+    });
+    
+    const wipLimit = AKTIV_WIP[col.id];
+    const isOverWip = wipLimit && items.length > wipLimit;
+    const countClass = isOverWip ? 'warn' : (items.length > 0 ? 'has-items' : '');
+    
+    const cardsHtml = items.length 
+      ? items.map(v => renderAktivCard(v)).join('')
+      : '<div class="aktiv-empty">— leer —</div>';
+    
+    return `
+      <div class="aktiv-col" data-status="${col.id}">
+        <div class="aktiv-col-head">
+          <div class="aktiv-col-title">${esc(col.label)}</div>
+          <div class="aktiv-col-count ${countClass}" 
+               title="${wipLimit ? `WIP-Limit: ${wipLimit}` : ''}">${items.length}${wipLimit ? '/' + wipLimit : ''}</div>
+        </div>
+        <div class="aktiv-col-body" data-status-target="${col.id}">
+          ${cardsHtml}
+        </div>
+      </div>
+    `;
+  }).join('');
+  
+  setupAktivDragDrop();
+}
+
+function renderAktivCard(v) {
+  const overdue = v.frist && daysUntil(v.frist) < 0;
+  const days = v.frist ? daysUntil(v.frist) : null;
+  
+  let fristText = '';
+  let fristClass = '';
+  if (v.frist) {
+    if (overdue) {
+      fristText = `⚠ ${Math.abs(days)}d`;
+      fristClass = 'urgent';
+    } else if (days === 0) {
+      fristText = 'heute';
+      fristClass = 'urgent';
+    } else if (days <= 3) {
+      fristText = `${days}d`;
+      fristClass = 'amber';
+    } else if (days <= 14) {
+      fristText = `${days}d`;
+    } else {
+      fristText = fmt(v.frist);
+    }
+  } else {
+    fristText = '—';
+  }
+  
+  return `
+    <div class="aktiv-card prio-${v.prioritaet.toLowerCase()} ${overdue ? 'overdue' : ''}" 
+         draggable="true"
+         data-vorgang-id="${v.id}"
+         onclick="openVorgangDrawer('${v.id}')">
+      <div class="aktiv-card-header">
+        <span class="aktiv-card-nr">${esc(v.vorgangsNr)}</span>
+        <span class="aktiv-card-prio ${v.prioritaet.toLowerCase()}">${v.prioritaet}</span>
+      </div>
+      <div class="aktiv-card-title">${esc(v.thema)}</div>
+      <div class="aktiv-card-meta">
+        <span class="aktiv-card-anlage">${esc(v.anlage)}</span>
+        <span class="aktiv-card-frist ${fristClass}">${fristText}</span>
+      </div>
+    </div>
+  `;
+}
+
+// ─── Drag & Drop für AKTIV-Board ───
+function setupAktivDragDrop() {
+  // Karten als Drag-Quellen
+  document.querySelectorAll('.aktiv-card').forEach(card => {
+    card.addEventListener('dragstart', e => {
+      e.stopPropagation();
+      const id = card.getAttribute('data-vorgang-id');
+      e.dataTransfer.setData('vorgangId', id);
+      e.dataTransfer.effectAllowed = 'move';
+      setTimeout(() => card.classList.add('dragging'), 0);
+    });
+    
+    card.addEventListener('dragend', () => {
+      card.classList.remove('dragging');
+    });
+  });
+  
+  // Spalten als Drop-Ziele
+  document.querySelectorAll('.aktiv-col-body').forEach(body => {
+    body.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      body.classList.add('drag-over');
+    });
+    
+    body.addEventListener('dragleave', e => {
+      // Nur entfernen wenn wir wirklich raus sind (nicht beim Hover über Karten)
+      if (!body.contains(e.relatedTarget)) {
+        body.classList.remove('drag-over');
+      }
+    });
+    
+    body.addEventListener('drop', e => {
+      e.preventDefault();
+      body.classList.remove('drag-over');
+      
+      const id = e.dataTransfer.getData('vorgangId');
+      const newStatus = body.getAttribute('data-status-target');
+      
+      const v = window.vorgaenge.find(x => x.id === id);
+      if (!v || v.status === newStatus) return;
+      
+      const t = today();
+      const oldStatus = v.status;
+      const oldLabel = V_STATUS.find(s => s.id === oldStatus)?.label || oldStatus;
+      const newLabel = V_STATUS.find(s => s.id === newStatus)?.label || newStatus;
+      
+      v.status = newStatus;
+      v.letzteAktivitaet = t;
+      v.log = `${t}: Status: ${oldLabel} → ${newLabel} (Drag & Drop)\n` + (v.log || '');
+      
+      saveDataVorgaenge();
+      renderAktivBoard();  // Neu rendern
+      renderVorgaengeTab(); // Counter etc. aktualisieren
+    });
+  });
+}
+// ═══════════════════════════════════════════════
+// VORGANGS-REGISTER (Tabelle mit Filtern)
 // ═══════════════════════════════════════════════
 function renderVorgaengeRegister() {
   const container = document.getElementById('vorgaengeList');
@@ -403,11 +564,17 @@ function setVorgaengeView(view) {
   });
   
   document.getElementById('heute-view').style.display = view === 'heute' ? 'flex' : 'none';
+  document.getElementById('aktiv-view').style.display = view === 'aktiv' ? 'block' : 'none';
   document.getElementById('all-view').style.display = view === 'all' ? 'block' : 'none';
   
   if (view === 'all') {
     renderVorgaengeRegister();
+  } else if (view === 'aktiv') {
+    renderAktivBoard();
   }
+  
+  // Persist gewählte View
+  localStorage.setItem('vorgaengeView', view);
 }
 
 // ═══════════════════════════════════════════════
@@ -661,3 +828,4 @@ window.addVorgangLog = addVorgangLog;
 window.deleteVorgang = deleteVorgang;
 window.setupVorgaengeFilters = setupVorgaengeFilters;
 window.toggleWorkflowStep = toggleWorkflowStep;
+window.renderAktivBoard = renderAktivBoard;
