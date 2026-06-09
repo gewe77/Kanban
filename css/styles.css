@@ -2056,3 +2056,54 @@ btn, button { font-family: var(--sans); cursor: pointer; }
   line-height: 1.5;
   margin-top: 4px;
 }
+
+/* ═══════════════════════════════════════════════
+   QUICK-CAPTURE MODAL
+═══════════════════════════════════════════════ */
+
+.quick-capture-hint {
+  background: var(--blue-bg);
+  border: 1px solid rgba(56,104,160,0.30);
+  border-left: 3px solid var(--blue-light);
+  border-radius: 4px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  display: flex;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--text);
+  line-height: 1.6;
+}
+
+.quick-capture-hint-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.quick-capture-hint kbd {
+  background: var(--el-1);
+  border: 1px solid var(--line2);
+  color: var(--blue-light);
+  border-radius: 2px;
+  padding: 1px 5px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.quick-capture-hint strong {
+  color: var(--blue-light);
+}
+
+/* Header-Button "Aus Mail" */
+.btn-mail-capture {
+  background: linear-gradient(135deg, var(--blue-bg), rgba(56,104,160,0.20));
+  border: 1px solid rgba(56,104,160,0.40);
+  color: var(--blue-light);
+}
+
+.btn-mail-capture:hover {
+  background: rgba(56,104,160,0.25);
+  border-color: var(--blue-light);
+  color: var(--text);
+}
