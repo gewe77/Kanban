@@ -633,9 +633,20 @@ function saveNewVorgang() {
   };
   
   window.vorgaenge.push(newVorgang);
+  
+  // Hook: Mail-Capture (falls aktiv)
+  if (typeof attachMailToNewVorgang === 'function') {
+    attachMailToNewVorgang(newVorgang);
+  }
+  
   saveDataVorgaenge();
   closeNewVorgangModal();
   renderVorgaengeTab();
+  
+  // Bestätigung wenn aus Mail erstellt
+  if (typeof showCaptureToast === 'function' && newVorgang.mails && newVorgang.mails.length > 0) {
+    showCaptureToast(`✓ Vorgang ${newVorgang.vorgangsNr} aus Mail erstellt`);
+  }
 }
 
 // ═══════════════════════════════════════════════
@@ -716,6 +727,24 @@ function openVorgangDrawer(vorgangId) {
     <div class="drawer-section">
       <div class="drawer-section-title">Abschlussvermerk</div>
       <div class="dfield-val">${esc(v.abschlussVermerk)}</div>
+    </div>
+    ` : ''}
+    
+    ${v.mails && v.mails.length > 0 ? `
+    <div class="drawer-section">
+      <div class="drawer-section-title">📧 Verknüpfte E-Mails (${v.mails.length})</div>
+      <div class="vorgang-mails">
+        ${v.mails.map(m => `
+          <div class="vorgang-mail">
+            <div class="vorgang-mail-header">
+              <span class="vorgang-mail-from">${esc(m.fromName || m.from || '—')}</span>
+              <span class="vorgang-mail-date">${m.date ? fmt(m.date) : '—'}</span>
+            </div>
+            <div class="vorgang-mail-subject">${esc(m.subject || '')}</div>
+            ${m.bodySnippet ? `<div class="vorgang-mail-body">${esc(m.bodySnippet.slice(0, 300))}${m.bodySnippet.length > 300 ? '…' : ''}</div>` : ''}
+          </div>
+        `).join('')}
+      </div>
     </div>
     ` : ''}
     
