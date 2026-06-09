@@ -527,12 +527,120 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════
+     MAIL-CAPTURE: DUPLIKAT-ERKENNUNG DIALOG
+═══════════════════════════════════════════════ -->
+<div class="modal-overlay" id="mailDuplicateOverlay">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-head">
+      <span class="modal-title">📧 Mail-Capture</span>
+      <button class="btn" onclick="closeMailDuplicateDialog()">✕</button>
+    </div>
+    <div class="modal-body" id="mailDuplicateContent">
+      <!-- Dynamisch gefüllt -->
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     MAIL-CAPTURE: VORGANG AKTUALISIEREN MODAL
+═══════════════════════════════════════════════ -->
+<div class="modal-overlay" id="updateVorgangOverlay" onclick="closeUpdateVorgangIfBg(event)">
+  <div class="modal" style="max-width:580px">
+    <div class="modal-head">
+      <span class="modal-title">↻ Vorgang mit Mail aktualisieren</span>
+      <button class="btn" onclick="closeUpdateVorgangModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      
+      <!-- Aktueller Vorgang -->
+      <div class="uvg-section">
+        <div class="uvg-section-title">Aktueller Vorgang</div>
+        <div style="font-weight:500;color:var(--text);font-size:13px;margin-bottom:6px" id="uvgTitle"></div>
+        <div class="uvg-current-info">
+          <div class="uvg-current-info-item">
+            <span class="uvg-current-info-label">Status</span>
+            <span class="uvg-current-info-value" id="uvgStatusCurrent"></span>
+          </div>
+          <div class="uvg-current-info-item">
+            <span class="uvg-current-info-label">Letzte Aktivität</span>
+            <span class="uvg-current-info-value" id="uvgLastActivity"></span>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Neue Mail-Info -->
+      <div class="uvg-section">
+        <div class="uvg-section-title">📧 Neue Mail-Info</div>
+        <div class="uvg-current-info">
+          <div class="uvg-current-info-item">
+            <span class="uvg-current-info-label">Absender</span>
+            <span class="uvg-current-info-value" id="uvgMailFrom"></span>
+          </div>
+          <div class="uvg-current-info-item">
+            <span class="uvg-current-info-label">Datum</span>
+            <span class="uvg-current-info-value" id="uvgMailDate"></span>
+          </div>
+        </div>
+        <div style="margin-top:8px">
+          <span class="uvg-current-info-label">Betreff</span>
+          <div class="uvg-current-info-value" style="margin-top:3px" id="uvgMailSubject"></div>
+        </div>
+      </div>
+      
+      <!-- Log-Eintrag -->
+      <div class="field">
+        <label class="field-label">Log-Eintrag (wird zum Vorgang hinzugefügt) <span class="req">*</span></label>
+        <textarea id="uvgLogEntry" style="min-height:80px"></textarea>
+      </div>
+      
+      <!-- Optionen -->
+      <div class="uvg-section">
+        <div class="uvg-section-title">Zusätzliche Aktionen</div>
+        
+        <div class="uvg-checkbox-row">
+          <input type="checkbox" id="uvgStatusCheckbox">
+          <label for="uvgStatusCheckbox">Status ändern auf:</label>
+        </div>
+        <div class="uvg-conditional">
+          <select id="uvgNewStatus"></select>
+        </div>
+        
+        <div class="uvg-checkbox-row">
+          <input type="checkbox" id="uvgWiedervorlageCheckbox">
+          <label for="uvgWiedervorlageCheckbox">Wiedervorlage setzen auf:</label>
+        </div>
+        <div class="uvg-conditional">
+          <input type="date" id="uvgWiedervorlage">
+        </div>
+        
+        <div class="uvg-checkbox-row">
+          <input type="checkbox" id="uvgNachweisCheckbox" checked>
+          <label for="uvgNachweisCheckbox">Nachweis erweitern um Mail-Referenz</label>
+        </div>
+        <div class="uvg-preview" id="uvgNachweisPreview"></div>
+        
+        <div class="uvg-checkbox-row" style="margin-top:14px">
+          <input type="checkbox" id="uvgBodyCheckbox">
+          <label for="uvgBodyCheckbox">Mail-Inhalt komplett als Notiz anhängen</label>
+        </div>
+      </div>
+      
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeUpdateVorgangModal()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveUpdateVorgang()">↻ Aktualisieren</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
      SCRIPTS
 ═══════════════════════════════════════════════ -->
 <script src="js/common.js"></script>
 <script src="js/kanban.js"></script>
 <script src="js/vorgaenge.js"></script>
 <script src="js/einstellungen.js"></script>
+<script src="js/mail-capture.js"></script>
 <script src="js/app.js"></script>
 
 </body>
