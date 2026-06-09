@@ -18,9 +18,21 @@ function processUrlParams() {
   const params = new URLSearchParams(window.location.search);
   const action = params.get('action');
   
+  // URL bereinigen (damit beim Refresh nichts passiert)
+  if (action) {
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+  
+  // Aktion: Quick-Capture Modal direkt öffnen
+  if (action === 'quickcapture') {
+    if (typeof switchTab === 'function') switchTab('vorgaenge');
+    setTimeout(() => openQuickCaptureModal(), 200);
+    return;
+  }
+  
+  // Aktion: Mail-Daten vom Bookmarklet (DOM-Erkennung erfolgreich)
   if (action !== 'mail') return;
   
-  // Mail-Daten aus URL extrahieren
   const mailData = {
     subject: params.get('subject') || '',
     from: params.get('from') || '',
@@ -29,23 +41,108 @@ function processUrlParams() {
     fromName: params.get('fromName') || ''
   };
   
-  // URL bereinigen (damit beim Refresh nichts passiert)
-  window.history.replaceState({}, document.title, window.location.pathname);
-  
   if (!mailData.subject && !mailData.body) {
-    console.warn('Mail-Capture: Keine Daten in URL');
+    // Keine Daten vom Bookmarklet → fallback auf Quick-Capture
+    if (typeof switchTab === 'function') switchTab('vorgaenge');
+    setTimeout(() => openQuickCaptureModal(), 200);
     return;
   }
   
   console.log('📧 Mail-Capture aktiv:', mailData);
   
-  // Zum Vorgänge-Tab wechseln
   if (typeof switchTab === 'function') {
     switchTab('vorgaenge');
   }
   
-  // Verarbeitung starten
   pendingMailData = mailData;
+  startMailCapture();
+}
+
+// ═══════════════════════════════════════════════
+// QUICK-CAPTURE MODAL
+// (Hauptweg: Manuelles Einfügen)
+// ═══════════════════════════════════════════════
+function openQuickCaptureModal() {
+  document.getElementById('qcSubject').value = '';
+  document.getElementById('qcFrom').value = '';
+  document.getElementById('qcBody').value = '';
+  document.getElementById('qcDate').value = today();
+  
+  document.getElementById('quickCaptureOverlay').classList.add('open');
+  setTimeout(() => document.getElementById('qcSubject')?.focus(), 50);
+}
+
+function closeQuickCaptureModal() {
+  document.getElementById('quickCaptureOverlay').classList.remove('open');
+}
+
+function closeQuickCaptureIfBg(e) {
+  if (e.target === document.getElementById('quickCaptureOverlay')) closeQuickCaptureModal();
+}
+
+async function pasteFromClipboard() {
+  try {
+    if (navigator.clipboard && navigator.clipboard.readText) {
+      const text = await navigator.clipboard.readText();
+      if (text) {
+        const bodyField = document.getElementById('qcBody');
+        bodyField.value = text;
+        // Falls Betreff leer ist: erste Zeile als Vorschlag
+        const subjectField = document.getElementById('qcSubject');
+        if (!subjectField.value) {
+          const firstLine = text.split('\n')[0].trim();
+          if (firstLine.length > 5 && firstLine.length < 200) {
+            subjectField.value = firstLine;
+          }
+        }
+        showCaptureToast('✓ Aus Zwischenablage eingefügt');
+      } else {
+        alert('Zwischenablage ist leer.');
+      }
+    } else {
+      alert('Dein Browser unterstützt die Zwischenablage-API nicht.\nBitte den Text manuell mit Strg+V einfügen.');
+    }
+  } catch (e) {
+    alert('Zugriff auf Zwischenablage verweigert.\nBitte den Text manuell mit Strg+V einfügen.\n\n(Browser-Einstellungen → Berechtigungen → Zwischenablage erlauben)');
+  }
+}
+
+function processQuickCapture() {
+  const subject = document.getElementById('qcSubject').value.trim();
+  const from = document.getElementById('qcFrom').value.trim();
+  const body = document.getElementById('qcBody').value.trim();
+  const date = document.getElementById('qcDate').value || today();
+  
+  if (!subject || !body) {
+    alert('Bitte mindestens Betreff und Mail-Text ausfüllen.');
+    return;
+  }
+  
+  // Absender intelligent parsen: "Max Mustermann <max@firma.de>"
+  let fromEmail = '';
+  let fromName = '';
+  if (from) {
+    const emailMatch = from.match(/<?([\w.\-+]+@[\w.-]+\.\w+)>?/);
+    if (emailMatch) {
+      fromEmail = emailMatch[1];
+      // Name ist alles vor der Mail-Adresse
+      fromName = from.replace(emailMatch[0], '').replace(/[<>]/g, '').trim();
+    } else if (from.includes('@')) {
+      fromEmail = from;
+    } else {
+      fromName = from;
+    }
+  }
+  
+  pendingMailData = {
+    subject: subject,
+    from: fromEmail,
+    fromName: fromName,
+    body: body,
+    date: date
+  };
+  
+  closeQuickCaptureModal();
   startMailCapture();
 }
 
@@ -570,6 +667,11 @@ function showCaptureToast(msg) {
 // INIT
 // ═══════════════════════════════════════════════
 window.processUrlParams = processUrlParams;
+window.openQuickCaptureModal = openQuickCaptureModal;
+window.closeQuickCaptureModal = closeQuickCaptureModal;
+window.closeQuickCaptureIfBg = closeQuickCaptureIfBg;
+window.pasteFromClipboard = pasteFromClipboard;
+window.processQuickCapture = processQuickCapture;
 window.closeMailDuplicateDialog = closeMailDuplicateDialog;
 window.ignoreAndCreateNew = ignoreAndCreateNew;
 window.selectVorgangForUpdate = selectVorgangForUpdate;
