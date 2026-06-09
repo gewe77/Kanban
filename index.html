@@ -35,6 +35,7 @@
     <button class="btn btn-auth-off" id="authBtn" onclick="handleAuth()">○ Anmelden</button>
     <button class="btn btn-kanban-only" onclick="openReview()">⬡ Weekly Review</button>
     <button class="btn btn-primary btn-kanban-only" onclick="openNewModal()">+ Neuer Vorgang</button>
+    <button class="btn btn-mail-capture btn-vorgaenge-only" onclick="openQuickCaptureModal()" style="display:none">📧 Aus Mail</button>
     <button class="btn btn-primary btn-vorgaenge-only" onclick="openNewVorgangModal()" style="display:none">+ Neuer Vorgang</button>
   </div>
 </header>
@@ -524,6 +525,62 @@
     </div>
   </div>
   <div class="drawer-body" id="vDrawerBody"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     MAIL-CAPTURE: QUICK-CAPTURE MODAL
+     (Hauptweg — manuelles Einfügen aus Zwischenablage)
+═══════════════════════════════════════════════ -->
+<div class="modal-overlay" id="quickCaptureOverlay" onclick="closeQuickCaptureIfBg(event)">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-head">
+      <span class="modal-title">📋 Mail-Capture: Daten einfügen</span>
+      <button class="btn" onclick="closeQuickCaptureModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      
+      <div class="quick-capture-hint">
+        <div class="quick-capture-hint-icon">💡</div>
+        <div>
+          <strong>So funktioniert's:</strong><br>
+          1. Wechsle zu Outlook (Mail ist noch offen)<br>
+          2. Markiere den Mail-Text (<kbd>Strg+A</kbd> im Body)<br>
+          3. Kopiere ihn (<kbd>Strg+C</kbd>)<br>
+          4. Komm zurück hierher und füge ihn unten ein (<kbd>Strg+V</kbd>)<br>
+          5. Klick <strong>"Analysieren →"</strong>
+        </div>
+      </div>
+      
+      <div class="field">
+        <label class="field-label">Betreff der Mail <span class="req">*</span></label>
+        <input type="text" id="qcSubject" placeholder="Z.B. NOx-Sensor MHKW defekt - DRINGEND">
+      </div>
+      
+      <div class="field">
+        <label class="field-label">Absender (E-Mail oder Name, optional)</label>
+        <input type="text" id="qcFrom" placeholder="z.B. firma@xy.de oder Max Mustermann">
+      </div>
+      
+      <div class="field">
+        <label class="field-label">Mail-Text <span class="req">*</span></label>
+        <textarea id="qcBody" placeholder="Hier den Mail-Inhalt einfügen…" style="min-height:140px"></textarea>
+      </div>
+      
+      <div class="field">
+        <label class="field-label">Mail-Datum (Standard: heute)</label>
+        <input type="date" id="qcDate">
+      </div>
+      
+      <button class="btn" onclick="pasteFromClipboard()" style="margin-top:8px;width:100%">
+        📋 Aus Zwischenablage in Mail-Text einfügen
+      </button>
+      
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeQuickCaptureModal()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="processQuickCapture()">Analysieren →</button>
+    </div>
+  </div>
 </div>
 
 <!-- ═══════════════════════════════════════════════
