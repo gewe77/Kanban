@@ -132,12 +132,6 @@ function init() {
   console.log(`✓ Kanban: ${window.cards.length} Karten`);
   console.log(`✓ Vorgänge: ${window.vorgaenge.length} Vorgänge`);
   console.log(`✓ Stammdaten geladen (lokal)`);
-  
-  // URL-Parameter prüfen (Mail-Capture vom Bookmarklet)
-  if (typeof processUrlParams === 'function') {
-    // Mit kleiner Verzögerung, damit Firestore-Auth Zeit hat
-    setTimeout(() => processUrlParams(), 500);
-  }
 }
 
 // Auth-UI initial setzen

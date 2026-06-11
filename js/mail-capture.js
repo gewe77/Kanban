@@ -1,8 +1,8 @@
 // ═══════════════════════════════════════════════
-// MAIL-CAPTURE
+// MAIL-CAPTURE (Quick-Capture only)
 // 
-// Verarbeitet URL-Parameter vom Bookmarklet
-// - Smart-Parser: Erkennt Anlage/Kategorie/Prio/Frist aus Mail
+// Verarbeitet manuell eingefügte Mail-Daten:
+// - Smart-Parser: Erkennt Anlage/Kategorie/Prio/Frist
 // - Duplikat-Erkennung: Findet ähnliche bestehende Vorgänge
 // - Update-Modal: Anhängen an bestehenden Vorgang
 // ═══════════════════════════════════════════════
@@ -12,55 +12,8 @@ let pendingMailData = null;
 let updateTargetVorgang = null;
 
 // ═══════════════════════════════════════════════
-// URL-PARAMETER VERARBEITEN
-// ═══════════════════════════════════════════════
-function processUrlParams() {
-  const params = new URLSearchParams(window.location.search);
-  const action = params.get('action');
-  
-  // URL bereinigen (damit beim Refresh nichts passiert)
-  if (action) {
-    window.history.replaceState({}, document.title, window.location.pathname);
-  }
-  
-  // Aktion: Quick-Capture Modal direkt öffnen
-  if (action === 'quickcapture') {
-    if (typeof switchTab === 'function') switchTab('vorgaenge');
-    setTimeout(() => openQuickCaptureModal(), 200);
-    return;
-  }
-  
-  // Aktion: Mail-Daten vom Bookmarklet (DOM-Erkennung erfolgreich)
-  if (action !== 'mail') return;
-  
-  const mailData = {
-    subject: params.get('subject') || '',
-    from: params.get('from') || '',
-    body: params.get('body') || '',
-    date: params.get('date') || today(),
-    fromName: params.get('fromName') || ''
-  };
-  
-  if (!mailData.subject && !mailData.body) {
-    // Keine Daten vom Bookmarklet → fallback auf Quick-Capture
-    if (typeof switchTab === 'function') switchTab('vorgaenge');
-    setTimeout(() => openQuickCaptureModal(), 200);
-    return;
-  }
-  
-  console.log('📧 Mail-Capture aktiv:', mailData);
-  
-  if (typeof switchTab === 'function') {
-    switchTab('vorgaenge');
-  }
-  
-  pendingMailData = mailData;
-  startMailCapture();
-}
-
-// ═══════════════════════════════════════════════
-// QUICK-CAPTURE MODAL
-// (Hauptweg: Manuelles Einfügen)
+// QUICK-CAPTURE MODAL ÖFFNEN
+// (Einstiegspunkt — wird durch Button "📧 Aus Mail" aufgerufen)
 // ═══════════════════════════════════════════════
 function openQuickCaptureModal() {
   document.getElementById('qcSubject').value = '';
@@ -87,7 +40,7 @@ async function pasteFromClipboard() {
       if (text) {
         const bodyField = document.getElementById('qcBody');
         bodyField.value = text;
-        // Falls Betreff leer ist: erste Zeile als Vorschlag
+        // Wenn Betreff leer ist: erste Zeile als Vorschlag
         const subjectField = document.getElementById('qcSubject');
         if (!subjectField.value) {
           const firstLine = text.split('\n')[0].trim();
@@ -125,7 +78,6 @@ function processQuickCapture() {
     const emailMatch = from.match(/<?([\w.\-+]+@[\w.-]+\.\w+)>?/);
     if (emailMatch) {
       fromEmail = emailMatch[1];
-      // Name ist alles vor der Mail-Adresse
       fromName = from.replace(emailMatch[0], '').replace(/[<>]/g, '').trim();
     } else if (from.includes('@')) {
       fromEmail = from;
@@ -168,6 +120,7 @@ function startMailCapture() {
 
 // ═══════════════════════════════════════════════
 // SMART-PARSER
+// Erkennt Anlage, Kategorie, Priorität, Frist aus dem Text
 // ═══════════════════════════════════════════════
 function parseMailContent(mail) {
   const text = `${mail.subject} ${mail.body}`.toLowerCase();
@@ -178,6 +131,7 @@ function parseMailContent(mail) {
     fromName: mail.fromName,
     date: mail.date,
     detectedAnlage: null,
+    detectedLiegenschaft: null,
     detectedKategorie: null,
     detectedPrioritaet: null,
     detectedFrist: null,
@@ -185,14 +139,30 @@ function parseMailContent(mail) {
     nachweis: ''
   };
   
-  // 1. Anlage erkennen (aus Stammdaten)
+  // 1. Anlage erkennen (aus Stammdaten) + Liegenschaft ableiten
   if (window.stammdaten?.anlagen) {
     for (const anlage of window.stammdaten.anlagen) {
       const name = anlage.name.toLowerCase();
-      // Wortgrenzen-Match: "MHKW" matched, aber nicht "MHKWeg"
       const regex = new RegExp(`\\b${escapeRegex(name)}\\b`, 'i');
       if (regex.test(text)) {
         result.detectedAnlage = anlage.name;
+        // Liegenschaft aus Zuordnung ableiten
+        if (typeof getLiegenschaftForAnlage === 'function') {
+          const lg = getLiegenschaftForAnlage(anlage.name);
+          if (lg) result.detectedLiegenschaft = lg.name;
+        }
+        break;
+      }
+    }
+  }
+  
+  // 1b. Falls keine Anlage: Liegenschaft direkt im Text suchen
+  if (!result.detectedLiegenschaft && window.stammdaten?.liegenschaften) {
+    for (const lg of window.stammdaten.liegenschaften) {
+      const name = lg.name.toLowerCase();
+      const regex = new RegExp(`\\b${escapeRegex(name)}\\b`, 'i');
+      if (regex.test(text)) {
+        result.detectedLiegenschaft = lg.name;
         break;
       }
     }
@@ -210,10 +180,7 @@ function parseMailContent(mail) {
   
   for (const [kat, keywords] of Object.entries(kategorieKeywords)) {
     if (keywords.some(kw => text.includes(kw))) {
-      // Existiert die Kategorie in Stammdaten?
-      const exists = window.stammdaten?.kategorien?.find(k => 
-        k.name === kat
-      );
+      const exists = window.stammdaten?.kategorien?.find(k => k.name === kat);
       if (exists) {
         result.detectedKategorie = kat;
         break;
@@ -231,22 +198,19 @@ function parseMailContent(mail) {
   } else if (prioBSignals.some(s => text.includes(s))) {
     result.detectedPrioritaet = 'B';
   } else {
-    result.detectedPrioritaet = 'C';  // Default
+    result.detectedPrioritaet = 'C';
   }
   
   // 4. Frist erkennen (Datumsmuster)
   result.detectedFrist = extractDate(text);
   
   // 5. Absender als Verantwortlich-Vorschlag
-  if (mail.from) {
-    // Externe Firma (nicht eigene Domain)?
-    if (mail.from.includes('@') && !isOwnDomain(mail.from)) {
-      const externalMatch = window.stammdaten?.verantwortliche?.find(v => 
-        v.name.toLowerCase().includes('firma')
-      );
-      if (externalMatch) {
-        result.detectedVerantwortlich = externalMatch.name;
-      }
+  if (mail.from && mail.from.includes('@')) {
+    const externalMatch = window.stammdaten?.verantwortliche?.find(v => 
+      v.name.toLowerCase().includes('firma')
+    );
+    if (externalMatch) {
+      result.detectedVerantwortlich = externalMatch.name;
     }
   }
   
@@ -260,10 +224,9 @@ function parseMailContent(mail) {
 
 function cleanSubject(subject) {
   if (!subject) return '';
-  // Entferne "RE:", "AW:", "FW:", "WG:", "Fwd:" etc.
   return subject
     .replace(/^(re|aw|fw|wg|fwd|antw|tr):\s*/gi, '')
-    .replace(/^(re|aw|fw|wg|fwd|antw|tr):\s*/gi, '')  // Mehrfach
+    .replace(/^(re|aw|fw|wg|fwd|antw|tr):\s*/gi, '')
     .trim();
 }
 
@@ -271,14 +234,8 @@ function escapeRegex(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function isOwnDomain(email) {
-  // Heuristik: Eigene Domain identifizieren (anpassbar)
-  // Für jetzt: leer = keine eigene Domain bekannt
-  return false;
-}
-
 function extractDate(text) {
-  // 1. Format: 15.06.2026 oder 15.06.26
+  // Format: 15.06.2026 oder 15.06.26
   const m1 = text.match(/(\d{1,2})\.(\d{1,2})\.(\d{2,4})/);
   if (m1) {
     const day = m1[1].padStart(2, '0');
@@ -288,7 +245,7 @@ function extractDate(text) {
     return `${year}-${month}-${day}`;
   }
   
-  // 2. "bis Freitag", "nächste Woche" usw.
+  // "bis Freitag", "nächste Woche" usw.
   const weekdays = ['sonntag','montag','dienstag','mittwoch','donnerstag','freitag','samstag'];
   const today_ = new Date();
   
@@ -318,6 +275,7 @@ function extractDate(text) {
 
 // ═══════════════════════════════════════════════
 // DUPLIKAT-ERKENNUNG
+// Sucht ähnliche bestehende Vorgänge
 // ═══════════════════════════════════════════════
 function findSimilarVorgaenge(mail, parsed) {
   const matches = [];
@@ -359,17 +317,21 @@ function findSimilarVorgaenge(mail, parsed) {
       }
     }
     
-    // 4. Gleiche Anlage
+    // 4. Gleiche Anlage (Bonus)
     if (parsed.detectedAnlage && v.anlage === parsed.detectedAnlage) {
       score += 15;
       reasons.push(`Gleiche Anlage: ${v.anlage}`);
+    } else if (parsed.detectedLiegenschaft && v.liegenschaft === parsed.detectedLiegenschaft) {
+      // Nur Liegenschaft gleich (schwächeres Signal)
+      score += 8;
+      reasons.push(`Gleiche Liegenschaft: ${v.liegenschaft}`);
     }
     
-    // 5. Wartet-Status mit gleichem Absender (Match-Bonus)
+    // 5. Wartet-Status + Absender Match (Bonus)
     if ((v.status === 'wartet-firma' || v.status === 'wartet-intern') && 
         mail.from && v.nachweis && v.nachweis.toLowerCase().includes(mail.from.toLowerCase().split('@')[0])) {
       score += 20;
-      reasons.push('Vorgang wartet auf Antwort von diesem Absender');
+      reasons.push('Vorgang wartet auf Antwort dieses Absenders');
     }
     
     if (score >= 50) {
@@ -377,9 +339,8 @@ function findSimilarVorgaenge(mail, parsed) {
     }
   }
   
-  // Nach Score sortieren
   matches.sort((a, b) => b.score - a.score);
-  return matches.slice(0, 5);  // Top 5
+  return matches.slice(0, 5);
 }
 
 // ═══════════════════════════════════════════════
@@ -461,10 +422,8 @@ function openUpdateVorgangModal() {
   const v = updateTargetVorgang;
   const mail = pendingMailData;
   
-  // Standard-Log-Eintrag vorbauen
   const logTemplate = buildMailLogEntry(mail);
   
-  // Modal-Felder füllen
   document.getElementById('uvgTitle').textContent = `${v.vorgangsNr} — ${v.thema}`;
   document.getElementById('uvgStatusCurrent').textContent = 
     V_STATUS.find(s => s.id === v.status)?.label || v.status;
@@ -476,12 +435,10 @@ function openUpdateVorgangModal() {
   
   document.getElementById('uvgLogEntry').value = logTemplate;
   
-  // Status-Dropdown füllen
   const statusSel = document.getElementById('uvgNewStatus');
   statusSel.innerHTML = '<option value="">— Status beibehalten —</option>' +
     V_STATUS.map(s => `<option value="${s.id}">${s.label}</option>`).join('');
   
-  // Wiedervorlage: heute + 7 Tage als Vorschlag
   const today_ = new Date();
   today_.setDate(today_.getDate() + 7);
   document.getElementById('uvgWiedervorlage').value = today_.toISOString().slice(0, 10);
@@ -497,10 +454,8 @@ function openUpdateVorgangModal() {
 }
 
 function buildMailLogEntry(mail) {
-  const t = today();
   const from = mail.fromName || mail.from || 'Mail';
   
-  // Body kürzen auf 200 Zeichen
   let bodySnippet = '';
   if (mail.body) {
     const cleaned = mail.body.replace(/\s+/g, ' ').trim();
@@ -581,7 +536,6 @@ function saveUpdateVorgang() {
   closeUpdateVorgangModal();
   renderVorgaengeTab();
   
-  // Bestätigung anzeigen
   showCaptureToast(`✓ Mail an ${v.vorgangsNr} angehängt`);
 }
 
@@ -589,13 +543,16 @@ function saveUpdateVorgang() {
 // MODAL: NEUER VORGANG AUS MAIL
 // ═══════════════════════════════════════════════
 function openNewVorgangFromMail(parsed) {
-  // Standard "Neuer Vorgang" Modal öffnen
   openNewVorgangModal();
   
-  // Felder mit erkannten Werten vorausfüllen
   setTimeout(() => {
     document.getElementById('vThema').value = parsed.thema;
     
+    if (parsed.detectedLiegenschaft) {
+      document.getElementById('vLiegenschaft').value = parsed.detectedLiegenschaft;
+      // Kaskade: Anlagen-Dropdown auf diese Liegenschaft filtern
+      if (typeof updateAnlagenDropdown === 'function') updateAnlagenDropdown();
+    }
     if (parsed.detectedAnlage) {
       document.getElementById('vAnlage').value = parsed.detectedAnlage;
     }
@@ -615,16 +572,13 @@ function openNewVorgangFromMail(parsed) {
       document.getElementById('vNachweis').value = parsed.nachweis;
     }
     
-    // Body-Snippet als Nächster-Schritt-Hinweis
     if (parsed.body) {
       const bodyShort = parsed.body.replace(/\s+/g, ' ').trim().slice(0, 200);
       document.getElementById('vNaechsterSchritt').value = 
         `[Aus Mail]: ${bodyShort}${bodyShort.length >= 200 ? '…' : ''}`;
     }
     
-    // Pending-Mail für Speichern merken
     window._mailCaptureData = pendingMailData;
-    
     pendingMailData = null;
   }, 100);
 }
@@ -645,8 +599,6 @@ function attachMailToNewVorgang(newVorgang) {
   window._mailCaptureData = null;
 }
 
-window.attachMailToNewVorgang = attachMailToNewVorgang;
-
 // ═══════════════════════════════════════════════
 // TOAST-MELDUNG
 // ═══════════════════════════════════════════════
@@ -664,9 +616,8 @@ function showCaptureToast(msg) {
 }
 
 // ═══════════════════════════════════════════════
-// INIT
+// EXPORTS
 // ═══════════════════════════════════════════════
-window.processUrlParams = processUrlParams;
 window.openQuickCaptureModal = openQuickCaptureModal;
 window.closeQuickCaptureModal = closeQuickCaptureModal;
 window.closeQuickCaptureIfBg = closeQuickCaptureIfBg;
@@ -679,3 +630,4 @@ window.closeUpdateVorgangModal = closeUpdateVorgangModal;
 window.closeUpdateVorgangIfBg = closeUpdateVorgangIfBg;
 window.saveUpdateVorgang = saveUpdateVorgang;
 window.showCaptureToast = showCaptureToast;
+window.attachMailToNewVorgang = attachMailToNewVorgang;

@@ -10,8 +10,7 @@ window.vorgaenge = [];
 let currentViewVorgaenge = 'heute';
 let drawerVorgangId = null;
 
-// Anlagen-Liste (anpassbar)
-const ANLAGEN = ['RTG', 'PLH', 'MHKW', 'Tankanlage', 'GA', 'Sonstige'];
+// Anlagen/Liegenschaften kommen aus den Stammdaten (einstellungen.js)
 
 // Status-Liste
 const V_STATUS = [
@@ -603,13 +602,14 @@ function closeVorgangModalIfBg(e) {
 
 function saveNewVorgang() {
   const thema = document.getElementById('vThema').value.trim();
+  const liegenschaft = document.getElementById('vLiegenschaft').value;
   const anlage = document.getElementById('vAnlage').value;
   const kategorie = document.getElementById('vKategorie').value;
   const naechsterSchritt = document.getElementById('vNaechsterSchritt').value.trim();
   const verantwortlich = document.getElementById('vVerantwortlich').value;
   
-  if (!thema || !anlage || !kategorie || !naechsterSchritt || !verantwortlich) {
-    alert('Bitte alle Pflichtfelder ausfüllen (Anlage, Thema, Kategorie, Nächster Schritt, Verantwortlich)');
+  if (!thema || !liegenschaft || !anlage || !kategorie || !naechsterSchritt || !verantwortlich) {
+    alert('Bitte alle Pflichtfelder ausfüllen (Liegenschaft, Anlage, Thema, Kategorie, Nächster Schritt, Verantwortlich)');
     return;
   }
   
@@ -617,6 +617,7 @@ function saveNewVorgang() {
   const newVorgang = {
     id: uid(),
     vorgangsNr: generateVorgangsNr(),
+    liegenschaft: liegenschaft,
     anlage: anlage,
     thema: thema,
     kategorie: kategorie,
@@ -629,6 +630,8 @@ function saveNewVorgang() {
     nachweis: document.getElementById('vNachweis').value.trim() || null,
     letzteAktivitaet: t,
     abschlussVermerk: null,
+    schritte: [],
+    schritteDone: 0,
     log: `${t}: Vorgang angelegt`
   };
   
@@ -670,6 +673,27 @@ function openVorgangDrawer(vorgangId) {
     return `<div class="log-entry"><div class="log-entry-content">${dateSpan}${textSpan}</div></div>`;
   }).join('');
   
+  // Schritte vorbereiten (wie im Kanban)
+  const schritte = v.schritte || [];
+  const done = v.schritteDone || 0;
+  const totalSchritte = schritte.length + done;
+  const nextStep = schritte.length ? schritte[0] : (v.naechsterSchritt || '—');
+
+  const schritteHtml = schritte.map((s, idx) => `
+    <div class="schritt-item">
+      <div class="schritt-check" onclick="checkVorgangSchritt(${idx})" title="Abhaken">✓</div>
+      <div class="schritt-text">${esc(s)}</div>
+      <button class="schritt-del ins" onclick="insertVorgangSchritt(${idx})" title="Schritt darunter einfügen">+</button>
+      <button class="schritt-del" onclick="deleteVorgangSchritt(${idx})" title="Entfernen">✕</button>
+    </div>`).join('');
+
+  const schritteProgressHtml = totalSchritte > 0
+    ? `<div class="schritt-progress">
+        <span>${done}/${totalSchritte} erledigt</span>
+        <div class="schritt-progress-bar"><div class="schritt-progress-fill" style="width:${Math.round(done / totalSchritte * 100)}%"></div></div>
+       </div>`
+    : '';
+
   document.getElementById('vDrawerBody').innerHTML = `
     <div class="drawer-section">
       <div class="drawer-section-title">Metadaten</div>
@@ -677,6 +701,10 @@ function openVorgangDrawer(vorgangId) {
         <div>
           <div class="dfield-label">Vorgangs-Nr</div>
           <div class="dfield-val">${esc(v.vorgangsNr)}</div>
+        </div>
+        <div>
+          <div class="dfield-label">Liegenschaft</div>
+          <div class="dfield-val">${esc(v.liegenschaft || '—')}</div>
         </div>
         <div>
           <div class="dfield-label">Anlage</div>
@@ -713,7 +741,17 @@ function openVorgangDrawer(vorgangId) {
     
     <div class="drawer-section">
       <div class="drawer-section-title">Nächster Schritt</div>
-      <div class="next-step-box">${esc(v.naechsterSchritt)}</div>
+      <div class="next-step-box">${esc(nextStep)}</div>
+    </div>
+    
+    <div class="drawer-section">
+      <div class="drawer-section-title">Schritte${totalSchritte > 0 ? ' (' + done + '/' + totalSchritte + ')' : ''}</div>
+      ${schritteHtml || '<div style="color:var(--text3);font-size:11px">Noch keine Schritte geplant.</div>'}
+      ${schritteProgressHtml}
+      <div class="schritt-add">
+        <input type="text" id="vSchrittInput" placeholder="Neuen Schritt hinzufügen…" onkeydown="if(event.key==='Enter')addVorgangSchritt()">
+        <button class="btn" onclick="addVorgangSchritt()">+ Schritt</button>
+      </div>
     </div>
     
     ${v.nachweis ? `
@@ -810,6 +848,85 @@ function addVorgangLog() {
   openVorgangDrawer(drawerVorgangId);
 }
 
+// ═══════════════════════════════════════════════
+// SCHRITTE-VERWALTUNG (analog Kanban)
+// ═══════════════════════════════════════════════
+function addVorgangSchritt() {
+  const input = document.getElementById('vSchrittInput');
+  const text = (input.value || '').trim();
+  if (!text) return;
+  const v = window.vorgaenge.find(x => x.id === drawerVorgangId);
+  if (!v) return;
+  if (!v.schritte) v.schritte = [];
+  v.schritte.push(text);
+  v.letzteAktivitaet = today();
+  saveDataVorgaenge();
+  renderVorgaengeTab();
+  openVorgangDrawer(drawerVorgangId);
+}
+
+function checkVorgangSchritt(idx) {
+  const v = window.vorgaenge.find(x => x.id === drawerVorgangId);
+  if (!v || !v.schritte || idx >= v.schritte.length) return;
+  const t = today();
+  const text = v.schritte[idx];
+  v.schritte.splice(idx, 1);
+  v.schritteDone = (v.schritteDone || 0) + 1;
+  v.log = `${t}: ✓ ${text}\n` + (v.log || '');
+  v.letzteAktivitaet = t;
+  saveDataVorgaenge();
+  renderVorgaengeTab();
+  openVorgangDrawer(drawerVorgangId);
+}
+
+function deleteVorgangSchritt(idx) {
+  const v = window.vorgaenge.find(x => x.id === drawerVorgangId);
+  if (!v || !v.schritte || idx >= v.schritte.length) return;
+  v.schritte.splice(idx, 1);
+  v.letzteAktivitaet = today();
+  saveDataVorgaenge();
+  renderVorgaengeTab();
+  openVorgangDrawer(drawerVorgangId);
+}
+
+function insertVorgangSchritt(idx) {
+  const items = document.querySelectorAll('#vDrawerBody .schritt-item');
+  if (idx >= items.length) return;
+  const target = items[idx];
+  if (target.nextElementSibling && target.nextElementSibling.classList.contains('schritt-insert-row')) return;
+
+  const row = document.createElement('div');
+  row.className = 'schritt-insert-row schritt-add';
+  row.style.margin = '6px 0';
+  row.innerHTML = `
+    <input type="text" placeholder="Zwischenschritt…" autofocus
+      style="flex:1;background:var(--el-3);border:1px solid var(--green-rim);border-radius:4px;color:var(--text);font-family:var(--sans);font-size:11px;padding:6px 9px;outline:none">
+    <button class="btn" style="font-size:9px;padding:3px 8px">↵</button>`;
+  target.after(row);
+
+  const input = row.querySelector('input');
+  const btn = row.querySelector('button');
+  input.focus();
+
+  function doInsert() {
+    const text = input.value.trim();
+    if (!text) { row.remove(); return; }
+    const v = window.vorgaenge.find(x => x.id === drawerVorgangId);
+    if (!v || !v.schritte) return;
+    v.schritte.splice(idx + 1, 0, text);
+    v.letzteAktivitaet = today();
+    saveDataVorgaenge();
+    renderVorgaengeTab();
+    openVorgangDrawer(drawerVorgangId);
+  }
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') doInsert();
+    if (e.key === 'Escape') row.remove();
+  });
+  btn.addEventListener('click', doInsert);
+}
+
 function deleteVorgang() {
   if (!drawerVorgangId) return;
   if (!confirm('Vorgang wirklich löschen?')) return;
@@ -839,7 +956,10 @@ function setupVorgaengeFilters() {
 // ═══════════════════════════════════════════════
 // EXPORTS (global)
 // ═══════════════════════════════════════════════
-window.ANLAGEN = ANLAGEN;
+window.addVorgangSchritt = addVorgangSchritt;
+window.checkVorgangSchritt = checkVorgangSchritt;
+window.deleteVorgangSchritt = deleteVorgangSchritt;
+window.insertVorgangSchritt = insertVorgangSchritt;
 window.V_STATUS = V_STATUS;
 window.KATEGORIEN = KATEGORIEN;
 window.VERANTWORTLICH = VERANTWORTLICH;
