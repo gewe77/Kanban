@@ -237,11 +237,25 @@
       </div>
     </div>
 
-    <!-- Anlagen / Liegenschaften -->
+    <!-- Liegenschaften -->
     <div class="stammdaten-section">
       <div class="stammdaten-section-header">
-        <div class="stammdaten-section-title">📦 Anlagen / Liegenschaften</div>
-        <div class="stammdaten-section-meta">Hauptkategorie</div>
+        <div class="stammdaten-section-title">📍 Liegenschaften</div>
+        <div class="stammdaten-section-meta">Oberste Ebene</div>
+      </div>
+      <div class="stammdaten-list" id="liegenschaftenList">
+        <!-- Dynamisch gefüllt -->
+      </div>
+      <div class="stammdaten-section-add">
+        <button class="btn btn-primary" onclick="openStammdatumModal('liegenschaften')">+ Neue Liegenschaft</button>
+      </div>
+    </div>
+
+    <!-- Anlagen -->
+    <div class="stammdaten-section">
+      <div class="stammdaten-section-header">
+        <div class="stammdaten-section-title">📦 Anlagen</div>
+        <div class="stammdaten-section-meta">Je Liegenschaft zugeordnet</div>
       </div>
       <div class="stammdaten-list" id="anlagenList">
         <!-- Dynamisch gefüllt -->
@@ -295,6 +309,10 @@
       <div class="field">
         <label class="field-label">Name <span class="req">*</span></label>
         <input type="text" id="sName" placeholder="z.B. RTG, Wartung, Meisterbereich">
+      </div>
+      <div class="field" id="sLiegenschaftField" style="display:none">
+        <label class="field-label">Liegenschaft <span class="req">*</span></label>
+        <select id="sLiegenschaft"></select>
       </div>
       <div class="field" id="sDescriptionField" style="display:none">
         <label class="field-label">Beschreibung (optional)</label>
@@ -431,29 +449,24 @@
       
       <div class="field-row2">
         <div class="field">
-          <label class="field-label">Anlage <span class="req">*</span></label>
-          <select id="vAnlage">
+          <label class="field-label">Liegenschaft <span class="req">*</span></label>
+          <select id="vLiegenschaft" onchange="onLiegenschaftChange()">
             <option value="">— Wählen —</option>
-            <option value="RTG">RTG</option>
-            <option value="PLH">PLH</option>
-            <option value="MHKW">MHKW</option>
-            <option value="Tankanlage">Tankanlage</option>
-            <option value="GA">GA</option>
-            <option value="Sonstige">Sonstige</option>
           </select>
         </div>
         <div class="field">
-          <label class="field-label">Kategorie <span class="req">*</span></label>
-          <select id="vKategorie">
+          <label class="field-label">Anlage <span class="req">*</span></label>
+          <select id="vAnlage" onchange="onAnlageChange()">
             <option value="">— Wählen —</option>
-            <option value="Störung">Störung</option>
-            <option value="Wartung">Wartung</option>
-            <option value="Mangel">Mangel</option>
-            <option value="Vergabe">Vergabe</option>
-            <option value="Frist">Frist</option>
-            <option value="Dokumentation">Dokumentation</option>
           </select>
         </div>
+      </div>
+      
+      <div class="field">
+        <label class="field-label">Kategorie <span class="req">*</span></label>
+        <select id="vKategorie">
+          <option value="">— Wählen —</option>
+        </select>
       </div>
       
       <div class="field">
@@ -474,11 +487,6 @@
           <label class="field-label">Verantwortlich <span class="req">*</span></label>
           <select id="vVerantwortlich">
             <option value="">— Wählen —</option>
-            <option value="Ich">Ich (GW)</option>
-            <option value="Meisterbereich">Meisterbereich</option>
-            <option value="Externe Firma">Externe Firma</option>
-            <option value="Leitung">Leitung</option>
-            <option value="Andere SB">Andere SB</option>
           </select>
         </div>
       </div>
