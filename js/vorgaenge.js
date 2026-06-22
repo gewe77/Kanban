@@ -666,11 +666,17 @@ function openVorgangDrawer(vorgangId) {
   
   document.getElementById('vDrawerTitle').textContent = `${v.vorgangsNr} — ${v.thema}`;
   
-  const logLines = (v.log || '').split('\n').filter(Boolean).map(l => {
+  const logLines = (v.log || '').split('\n').filter(Boolean).map((l, idx) => {
     const m = l.match(/^(\d{4}-\d{2}-\d{2}):\s*(.+)$/);
     const dateSpan = m ? `<span class="log-date">${m[1]}</span>` : '';
     const textSpan = `<span class="log-text">${esc(m ? m[2] : l)}</span>`;
-    return `<div class="log-entry"><div class="log-entry-content">${dateSpan}${textSpan}</div></div>`;
+    return `<div class="log-entry">
+      <div class="log-entry-content">${dateSpan}${textSpan}</div>
+      <div class="log-entry-actions">
+        <button class="log-entry-btn" onclick="editVorgangLogEntry(event,${idx})" title="Bearbeiten">✎</button>
+        <button class="log-entry-btn del" onclick="deleteVorgangLogEntry(${idx})" title="Löschen">✕</button>
+      </div>
+    </div>`;
   }).join('');
   
   // Schritte vorbereiten (wie im Kanban)
@@ -680,9 +686,10 @@ function openVorgangDrawer(vorgangId) {
   const nextStep = schritte.length ? schritte[0] : (v.naechsterSchritt || '—');
 
   const schritteHtml = schritte.map((s, idx) => `
-    <div class="schritt-item">
+    <div class="schritt-item" data-idx="${idx}">
       <div class="schritt-check" onclick="checkVorgangSchritt(${idx})" title="Abhaken">✓</div>
-      <div class="schritt-text">${esc(s)}</div>
+      <div class="schritt-text" onclick="editVorgangSchritt(${idx})" title="Klicken zum Bearbeiten">${esc(s)}</div>
+      <button class="schritt-del ins" onclick="insertVorgangSchrittAbove(${idx})" title="Schritt davor einfügen">↑+</button>
       <button class="schritt-del ins" onclick="insertVorgangSchritt(${idx})" title="Schritt darunter einfügen">+</button>
       <button class="schritt-del" onclick="deleteVorgangSchritt(${idx})" title="Entfernen">✕</button>
     </div>`).join('');
@@ -848,6 +855,74 @@ function addVorgangLog() {
   openVorgangDrawer(drawerVorgangId);
 }
 
+// Log-Eintrag bearbeiten (Inline-Edit)
+function editVorgangLogEntry(e, idx) {
+  e.stopPropagation();
+  const v = window.vorgaenge.find(x => x.id === drawerVorgangId);
+  if (!v) return;
+  const lines = (v.log || '').split('\n').filter(Boolean);
+  if (idx >= lines.length) return;
+
+  const entryDiv = e.currentTarget.closest('.log-entry');
+  const content = entryDiv.querySelector('.log-entry-content');
+  const actions = entryDiv.querySelector('.log-entry-actions');
+
+  // Schon im Edit-Modus?
+  if (content.querySelector('.log-edit-input')) return;
+
+  const m = lines[idx].match(/^(\d{4}-\d{2}-\d{2}):\s*(.+)$/);
+  const currentText = m ? m[2] : lines[idx];
+  const prefix = m ? m[1] + ': ' : '';
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'log-edit-input';
+  input.value = currentText;
+  content.appendChild(input);
+  input.focus();
+  input.select();
+  actions.style.opacity = '1';
+
+  const editBtn = e.currentTarget;
+  const originalIcon = editBtn.textContent;
+  editBtn.textContent = '✓';
+  editBtn.onclick = null;
+  
+  function save() {
+    const newText = input.value.trim();
+    if (newText) lines[idx] = prefix + newText;
+    v.log = lines.join('\n');
+    v.letzteAktivitaet = today();
+    saveDataVorgaenge();
+    openVorgangDrawer(drawerVorgangId);
+  }
+  
+  editBtn.addEventListener('click', ev => {
+    ev.stopPropagation();
+    save();
+  });
+  input.addEventListener('keydown', ev => {
+    if (ev.key === 'Enter') save();
+    if (ev.key === 'Escape') openVorgangDrawer(drawerVorgangId);
+  });
+}
+
+// Log-Eintrag löschen
+function deleteVorgangLogEntry(idx) {
+  const v = window.vorgaenge.find(x => x.id === drawerVorgangId);
+  if (!v) return;
+  const lines = (v.log || '').split('\n').filter(Boolean);
+  if (idx >= lines.length) return;
+  
+  if (!confirm('Log-Eintrag wirklich löschen?')) return;
+  
+  lines.splice(idx, 1);
+  v.log = lines.join('\n');
+  v.letzteAktivitaet = today();
+  saveDataVorgaenge();
+  openVorgangDrawer(drawerVorgangId);
+}
+
 // ═══════════════════════════════════════════════
 // SCHRITTE-VERWALTUNG (analog Kanban)
 // ═══════════════════════════════════════════════
@@ -889,42 +964,120 @@ function deleteVorgangSchritt(idx) {
   openVorgangDrawer(drawerVorgangId);
 }
 
+// Schritt bearbeiten (Inline-Edit)
+function editVorgangSchritt(idx) {
+  const v = window.vorgaenge.find(x => x.id === drawerVorgangId);
+  if (!v || !v.schritte || idx >= v.schritte.length) return;
+  
+  const items = document.querySelectorAll('#vDrawerBody .schritt-item');
+  const target = Array.from(items).find(el => parseInt(el.dataset.idx) === idx);
+  if (!target) return;
+  
+  // Prüfen ob bereits im Edit-Modus
+  if (target.querySelector('.schritt-edit-input')) return;
+  
+  const textEl = target.querySelector('.schritt-text');
+  const currentText = v.schritte[idx];
+  
+  // Input-Feld erstellen und ersetzen
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'schritt-edit-input';
+  input.value = currentText;
+  input.style.cssText = 'flex:1;background:var(--el-2);border:1px solid var(--amber-rim);border-radius:3px;color:var(--text);font-family:var(--sans);font-size:11px;padding:5px 8px;outline:none';
+  
+  textEl.style.display = 'none';
+  textEl.parentNode.insertBefore(input, textEl);
+  input.focus();
+  input.select();
+  
+  function saveEdit() {
+    const newText = input.value.trim();
+    if (newText && newText !== currentText) {
+      v.schritte[idx] = newText;
+      v.letzteAktivitaet = today();
+      saveDataVorgaenge();
+      renderVorgaengeTab();
+    }
+    openVorgangDrawer(drawerVorgangId);
+  }
+  
+  function cancelEdit() {
+    input.remove();
+    textEl.style.display = '';
+  }
+  
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') saveEdit();
+    if (e.key === 'Escape') cancelEdit();
+  });
+  input.addEventListener('blur', saveEdit);
+}
+
+// Zwischenschritt DARUNTER einfügen
 function insertVorgangSchritt(idx) {
   const items = document.querySelectorAll('#vDrawerBody .schritt-item');
-  if (idx >= items.length) return;
-  const target = items[idx];
-  if (target.nextElementSibling && target.nextElementSibling.classList.contains('schritt-insert-row')) return;
+  const target = Array.from(items).find(el => parseInt(el.dataset.idx) === idx);
+  if (!target) return;
+  
+  // Bestehende Insert-Row entfernen falls vorhanden
+  document.querySelectorAll('#vDrawerBody .schritt-insert-row').forEach(r => r.remove());
 
+  const row = createSchrittInsertRow(idx + 1, 'darunter');
+  target.after(row);
+  row.querySelector('input').focus();
+}
+
+// Zwischenschritt DAVOR einfügen
+function insertVorgangSchrittAbove(idx) {
+  const items = document.querySelectorAll('#vDrawerBody .schritt-item');
+  const target = Array.from(items).find(el => parseInt(el.dataset.idx) === idx);
+  if (!target) return;
+  
+  // Bestehende Insert-Row entfernen falls vorhanden
+  document.querySelectorAll('#vDrawerBody .schritt-insert-row').forEach(r => r.remove());
+
+  const row = createSchrittInsertRow(idx, 'davor');
+  target.before(row);
+  row.querySelector('input').focus();
+}
+
+// Helper: Insert-Row HTML-Element bauen
+function createSchrittInsertRow(insertAtIdx, position) {
   const row = document.createElement('div');
   row.className = 'schritt-insert-row schritt-add';
   row.style.margin = '6px 0';
   row.innerHTML = `
-    <input type="text" placeholder="Zwischenschritt…" autofocus
+    <input type="text" placeholder="Zwischenschritt ${position} einfügen…"
       style="flex:1;background:var(--el-3);border:1px solid var(--green-rim);border-radius:4px;color:var(--text);font-family:var(--sans);font-size:11px;padding:6px 9px;outline:none">
-    <button class="btn" style="font-size:9px;padding:3px 8px">↵</button>`;
-  target.after(row);
-
+    <button class="btn" style="font-size:9px;padding:3px 8px">↵</button>
+    <button class="btn" style="font-size:9px;padding:3px 8px" title="Abbrechen">✕</button>`;
+  
   const input = row.querySelector('input');
-  const btn = row.querySelector('button');
-  input.focus();
-
+  const btnSave = row.querySelectorAll('button')[0];
+  const btnCancel = row.querySelectorAll('button')[1];
+  
   function doInsert() {
     const text = input.value.trim();
     if (!text) { row.remove(); return; }
     const v = window.vorgaenge.find(x => x.id === drawerVorgangId);
-    if (!v || !v.schritte) return;
-    v.schritte.splice(idx + 1, 0, text);
+    if (!v) return;
+    if (!v.schritte) v.schritte = [];
+    v.schritte.splice(insertAtIdx, 0, text);
     v.letzteAktivitaet = today();
     saveDataVorgaenge();
     renderVorgaengeTab();
     openVorgangDrawer(drawerVorgangId);
   }
-
+  
   input.addEventListener('keydown', e => {
     if (e.key === 'Enter') doInsert();
     if (e.key === 'Escape') row.remove();
   });
-  btn.addEventListener('click', doInsert);
+  btnSave.addEventListener('click', doInsert);
+  btnCancel.addEventListener('click', () => row.remove());
+  
+  return row;
 }
 
 function deleteVorgang() {
@@ -960,6 +1113,10 @@ window.addVorgangSchritt = addVorgangSchritt;
 window.checkVorgangSchritt = checkVorgangSchritt;
 window.deleteVorgangSchritt = deleteVorgangSchritt;
 window.insertVorgangSchritt = insertVorgangSchritt;
+window.insertVorgangSchrittAbove = insertVorgangSchrittAbove;
+window.editVorgangSchritt = editVorgangSchritt;
+window.editVorgangLogEntry = editVorgangLogEntry;
+window.deleteVorgangLogEntry = deleteVorgangLogEntry;
 window.V_STATUS = V_STATUS;
 window.KATEGORIEN = KATEGORIEN;
 window.VERANTWORTLICH = VERANTWORTLICH;
