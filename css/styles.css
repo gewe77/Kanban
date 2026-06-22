@@ -2132,3 +2132,7 @@ btn, button { font-family: var(--sans); cursor: pointer; }
   color: var(--text3);
   letter-spacing: 0.04em;
 }
+
+/* v9: Schritte-Text klickbar für Inline-Edit */
+.schritt-text { cursor: pointer; }
+.schritt-text:hover { color: var(--amber-light); }
