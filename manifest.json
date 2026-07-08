@@ -1,7 +1,7 @@
 {
-  "name": "Betriebsführungssystem",
-  "short_name": "Betrieb",
-  "description": "Kanban + Vorgangsmanagement für Betriebsingenieure",
+  "name": "Vorgangsregister",
+  "short_name": "Register",
+  "description": "Vorgangsregister für Betriebsingenieure — nach Dringlichkeit sortiert",
   "display": "standalone",
   "orientation": "any",
   "start_url": "./index.html",

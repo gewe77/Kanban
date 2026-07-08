@@ -1,10 +1,14 @@
-# Betriebsführungssystem
+# Vorgangsregister
 
-Multi-Board Web-App für Betriebsingenieure mit:
-- 🎯 **Kanban** — Projekt- und Vorgangsverwaltung mit Drag & Drop
-- 📋 **Vorgänge** — Tägliche Wiedervorlage-Steuerung mit Heute-Liste, AKTIV-Board und Register
-- ⚙️ **Einstellungen** — Stammdaten-Verwaltung (Anlagen, Kategorien, Verantwortliche)
+Web-App für Betriebsingenieure mit:
+- 📋 **Vorgangsregister** — eine einzige, nach Dringlichkeit sortierte Liste (kein Board, keine Ordner). Jeder Vorgang trägt Frist + Puffer + automatisch berechnete Wiedervorlage und bewegt sich von selbst nach oben, sobald sein Termin näher rückt
+- ⚙️ **Einstellungen** — Stammdaten-Verwaltung (Liegenschaften, Anlagen, Kategorien, Verantwortliche)
 - 📧 **Mail-Capture** — E-Mails als Vorgänge erfassen (manuell, mit Smart-Parser)
+
+> **Hinweis:** Das frühere Kanban-Board sowie die Heute-/Aktiv-Ansichten wurden entfernt.
+> Sie hatten sich in der Praxis nicht bewährt (Übertrag aus Outlook unzuverlässig,
+> Ordnerstruktur wurde nicht konsequent abgearbeitet). Das Register ersetzt beides
+> durch ein einziges "Abarbeitungsregister mit Nachverfolgung".
 
 ## Architektur
 
@@ -16,10 +20,9 @@ kanban-betrieb/
 ├── css/
 │   └── styles.css          # Dark UI Design (9 Prinzipien)
 └── js/
-    ├── firebase-config.js  # Beide Firestore-Instanzen + Auth
+    ├── firebase-config.js  # Firestore-Instanz (betrieb-vorgaenge) + Auth
     ├── common.js           # Utilities (Datum, Escape, LocalStorage)
-    ├── kanban.js           # Kanban Board Logik
-    ├── vorgaenge.js        # Vorgangsmanagement (Heute/Aktiv/Register)
+    ├── register.js         # Vorgangsregister: Dringlichkeit, Drawer, Schritte, Log
     ├── einstellungen.js    # Stammdaten-Verwaltung
     ├── mail-capture.js     # Mail-Quick-Capture + Smart-Parser
     └── app.js              # Tab-Switching, Init, Keyboard
@@ -27,12 +30,33 @@ kanban-betrieb/
 
 ## Firebase-Setup
 
-Zwei separate Projekte:
+Ein Projekt: `betrieb-vorgaenge` (Collections `vorgaenge`, `stammdaten_*`).
 
-| Board | Projekt | Collections |
-|-------|---------|-------------|
-| Kanban | `kanban-betrieb` | `vorgaenge` |
-| Vorgänge | `betrieb-vorgaenge` | `vorgaenge`, `stammdaten_*` |
+Das frühere zweite Projekt `kanban-betrieb` wird nicht mehr verwendet und kann bei
+Bedarf in der Firebase-Konsole gelöscht werden.
+
+## Dringlichkeits-Logik (Kernstück des Registers)
+
+Jeder Vorgang bekommt automatisch eine Klasse zugewiesen, danach wird sortiert:
+
+| Rang | Klasse | Bedingung |
+|------|--------|-----------|
+| 0 | überfällig | echte Frist liegt in der Vergangenheit |
+| 1 | heute fällig | Frist heute, oder Wiedervorlage heute/überschritten |
+| 1.5 | neu | Status "Neu / Ungeprüft" — noch nicht bewertet |
+| 2 | wartet auf extern | Status "Wartet Firma/Intern" mit künftiger Wiedervorlage |
+| 3 | diese Woche | Frist in ≤ 7 Tagen |
+| 4 | später | kein naher Trigger |
+| 99 | erledigt/archiviert | ausgeblendet, außer manuell eingeblendet |
+
+**Puffer:** Beim Anlegen wird ein Puffer (Standard: 2 Tage) hinterlegt. Ist keine
+Wiedervorlage manuell gesetzt, wird sie automatisch als `Frist − Puffer` berechnet.
+Das gibt dem Vorgang einen künstlich vorgezogenen Trigger-Zeitpunkt, damit
+unvorhergesehene Tagesstörungen nicht direkt die echte Frist gefährden.
+
+**Soft-WIP-Limit:** Die Kennzahlenleiste zeigt "X/3 aktiv in Bearbeitung" und
+markiert das Limit farblich, wenn es überschritten wird — bewusst klein gehalten,
+damit nicht zu viele Vorgänge gleichzeitig als "aktiv" erscheinen.
 
 ### Firestore-Rules (betrieb-vorgaenge)
 
@@ -117,17 +141,16 @@ Treffer ab 50% → Update-Vorschlag.
 
 | Taste | Funktion |
 |-------|----------|
-| `1` | Tab Kanban |
-| `2` | Tab Vorgänge |
-| `n` | Neuer Vorgang/Karte |
+| `n` | Neuer Vorgang |
 | `Esc` | Alle Overlays schließen |
 
 ## Roadmap
 
-- [x] Phase 1: Kanban (Single-File)
+- [x] Phase 1: Kanban (Single-File) — *abgelöst*
 - [x] Phase 2: Multi-File-Architektur
-- [x] Phase 2b: Vorgangsmanagement (Heute/Aktiv/Register)
+- [x] Phase 2b: Vorgangsmanagement (Heute/Aktiv/Register) — *abgelöst*
 - [x] Phase 2c: Einstellungen (Stammdaten via Firestore)
 - [x] Phase 2d: Mail-Capture (Quick-Capture + Smart-Parser)
+- [x] Phase 2e: Vorgangsregister mit Dringlichkeits-Logik, Puffer/Wiedervorlage, Soft-WIP-Limit
 - [ ] Phase 3: Wartungsmanagement (eigene Firestore-Instanz)
 - [ ] Phase 4: Betriebsstatistik (Dashboard)
