@@ -2136,3 +2136,142 @@ btn, button { font-family: var(--sans); cursor: pointer; }
 /* v9: Schritte-Text klickbar für Inline-Edit */
 .schritt-text { cursor: pointer; }
 .schritt-text:hover { color: var(--amber-light); }
+
+/* ═══════════════════════════════════════
+   VORGANGSREGISTER
+   Flache, nach Dringlichkeit sortierte Liste —
+   ersetzt Kanban-Board und Heute/Aktiv-Ansichten
+═══════════════════════════════════════ */
+
+.register-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  padding: 10px 16px;
+  background: var(--el-1);
+  border-bottom: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text2);
+}
+
+.register-summary-item.urgent { color: var(--red-light); }
+.register-summary-item.warn   { color: var(--amber-light); }
+
+.register-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px;
+  background: var(--el-1);
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+
+.register-toggle-erledigt {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text2);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.register-list {
+  max-height: calc(100vh - 280px);
+  overflow-y: auto;
+}
+
+.register-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.register-row:hover { background: var(--el-3); }
+.register-row:last-child { border-bottom: none; }
+
+.register-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.register-dot-ueberfaellig { background: var(--red-light); }
+.register-dot-heute        { background: var(--blue-light); }
+.register-dot-neu          { background: var(--c-parken); }
+.register-dot-wartet       { background: var(--violet-light); }
+.register-dot-diese-woche  { background: var(--amber-light); }
+.register-dot-spaeter      { background: var(--text3); }
+.register-dot-erledigt     { background: var(--green-light); }
+
+.register-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.register-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.register-sub {
+  font-size: 11px;
+  color: var(--text2);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.register-side {
+  text-align: right;
+  flex-shrink: 0;
+  max-width: 240px;
+}
+
+.register-next {
+  font-size: 11px;
+  color: var(--text2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.register-frist {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+.register-frist-ueberfaellig { color: var(--red-light); }
+.register-frist-heute        { color: var(--blue-light); }
+.register-frist-neu          { color: var(--c-parken); }
+.register-frist-wartet       { color: var(--violet-light); }
+.register-frist-diese-woche  { color: var(--amber-light); }
+.register-frist-spaeter      { color: var(--text3); }
+.register-frist-erledigt     { color: var(--green-light); }
+
+/* Frist-Bearbeiten-Formular im Drawer */
+.frist-edit-form .field { margin-bottom: 10px; }
+
+@media (max-width: 768px) {
+  .register-side { max-width: 130px; }
+}
+
+.drawer-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+@media (max-width: 768px) {
+  .drawer-grid-3 { grid-template-columns: 1fr; }
+}
