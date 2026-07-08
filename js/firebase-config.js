@@ -1,12 +1,21 @@
 // ═══════════════════════════════════════════════
 // FIREBASE KONFIGURATION
-// Eine Firestore-Instanz: betrieb-vorgaenge
-// (Vorgangsregister + Stammdaten)
 //
-// Das frühere zweite Projekt "kanban-betrieb" wird
-// nicht mehr verwendet, seit das Kanban-Board entfernt
-// wurde. Es kann bei Bedarf in der Firebase-Konsole
-// gelöscht werden.
+// Zwei Firebase-Projekte, aber nur eines für Daten:
+//   1. betrieb-vorgaenge — Firestore (Vorgänge + Stammdaten).
+//      Die einzige Datenquelle der App.
+//   2. kanban-betrieb    — wird NICHT mehr für Daten verwendet
+//      (das Kanban-Board ist entfernt), aber weiterhin für die
+//      Google-Anmeldung benötigt: nur in diesem Projekt ist
+//      Firebase Authentication tatsächlich eingerichtet.
+//      Der API-Key von betrieb-vorgaenge ist dafür nicht freigegeben
+//      (führt sonst zu "auth/api-key-not-valid").
+//
+//      Falls gewünscht, kann Authentication später direkt in
+//      betrieb-vorgaenge eingerichtet werden (Firebase-Konsole →
+//      Authentication → Google-Anbieter aktivieren + autorisierte
+//      Domain gewe77.github.io eintragen) — dann kann dieses
+//      zweite Projekt komplett entfallen.
 // ═══════════════════════════════════════════════
 
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js';
@@ -15,7 +24,17 @@ import { getFirestore, collection, getDocs, setDoc, deleteDoc, doc }
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut }
   from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js';
 
-// ─── VORGÄNGE PROJEKT ───
+// ─── AUTH-PROJEKT (nur für Anmeldung) ───
+const firebaseConfigAuth = {
+  apiKey:            "AIzaSyDzm5ePW5f45RU8kVn-ch3jRgdOmT_DzZg",
+  authDomain:        "kanban-betrieb.firebaseapp.com",
+  projectId:         "kanban-betrieb",
+  storageBucket:     "kanban-betrieb.firebasestorage.app",
+  messagingSenderId: "858594172795",
+  appId:             "1:858594172795:web:d6c18da8e9814a298ba7de"
+};
+
+// ─── VORGÄNGE PROJEKT (einzige Datenquelle) ───
 const firebaseConfigVorgaenge = {
   apiKey:            "AIzaSyChAk5gQgv-rci1_zywUycLJYfyjRY18G8",
   authDomain:        "betrieb-vorgaenge.firebaseapp.com",
@@ -26,12 +45,11 @@ const firebaseConfigVorgaenge = {
 };
 
 // ─── Initialisierung ───
+const appAuth      = initializeApp(firebaseConfigAuth, 'auth');
 const appVorgaenge = initializeApp(firebaseConfigVorgaenge);
 
 const db_vorgaenge = getFirestore(appVorgaenge);
-
-// Auth über das Vorgänge-Projekt
-const auth = getAuth(appVorgaenge);
+const auth         = getAuth(appAuth);
 
 // ─── Global verfügbar machen ───
 window._db_vorgaenge = db_vorgaenge;
