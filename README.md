@@ -30,10 +30,12 @@ kanban-betrieb/
 
 ## Firebase-Setup
 
-Ein Projekt: `betrieb-vorgaenge` (Collections `vorgaenge`, `stammdaten_*`).
+Zwei Firebase-Projekte, aber nur eines mit Daten:
 
-Das frühere zweite Projekt `kanban-betrieb` wird nicht mehr verwendet und kann bei
-Bedarf in der Firebase-Konsole gelöscht werden.
+| Projekt | Zweck |
+|---------|-------|
+| `betrieb-vorgaenge` | Firestore (`vorgaenge`, `stammdaten_*`) — die einzige Datenquelle |
+| `kanban-betrieb` | **Nur noch für die Google-Anmeldung.** Enthält keine genutzten Daten mehr, aber nur hier ist Firebase Authentication eingerichtet. Kann **nicht** einfach gelöscht werden, ohne vorher Authentication in `betrieb-vorgaenge` selbst einzurichten (siehe Kommentar in `firebase-config.js`). |
 
 ## Dringlichkeits-Logik (Kernstück des Registers)
 
