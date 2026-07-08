@@ -1,6 +1,5 @@
 // ═══════════════════════════════════════════════
 // GEMEINSAME UTILITY-FUNKTIONEN
-// Für Kanban und Vorgänge gleichermaßen genutzt
 // ═══════════════════════════════════════════════
 
 // ── Datum & Zeit ──
@@ -21,10 +20,10 @@ function fmt(d) {
 function fmtLong(dateStr) {
   if (!dateStr) return '–';
   const d = new Date(dateStr);
-  return d.toLocaleDateString('de-DE', { 
-    weekday: 'short', 
-    month: 'short', 
-    day: '2-digit' 
+  return d.toLocaleDateString('de-DE', {
+    weekday: 'short',
+    month: 'short',
+    day: '2-digit'
   });
 }
 
@@ -51,18 +50,6 @@ function daysUntil(dateStr) {
 }
 
 // ── LocalStorage Helpers ──
-function loadLocalDataKanban() {
-  try {
-    return JSON.parse(localStorage.getItem('kanban_betrieb_v1')) || [];
-  } catch {
-    return [];
-  }
-}
-
-function saveLocalKanban() {
-  localStorage.setItem('kanban_betrieb_v1', JSON.stringify(window.cards || []));
-}
-
 function loadLocalDataVorgaenge() {
   try {
     return JSON.parse(localStorage.getItem('betrieb_vorgaenge_v1')) || [];
@@ -81,10 +68,10 @@ function setSyncStatus(state) {
   const txt = document.getElementById('syncText');
   if (!dot) return;
   dot.className = 'sync-dot ' + state;
-  txt.textContent = { 
-    synced: 'Firestore sync', 
-    syncing: 'Speichern…', 
-    error: 'Sync-Fehler' 
+  txt.textContent = {
+    synced: 'Firestore sync',
+    syncing: 'Speichern…',
+    error: 'Sync-Fehler'
   }[state] || 'Lokal';
 }
 
@@ -127,8 +114,6 @@ window.fmtLong = fmtLong;
 window.esc = esc;
 window.dueClass = dueClass;
 window.daysUntil = daysUntil;
-window.loadLocalDataKanban = loadLocalDataKanban;
-window.saveLocalKanban = saveLocalKanban;
 window.loadLocalDataVorgaenge = loadLocalDataVorgaenge;
 window.saveLocalVorgaenge = saveLocalVorgaenge;
 window.setSyncStatus = setSyncStatus;
