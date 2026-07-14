@@ -40,7 +40,8 @@ const DEFAULT_STAMMDATEN = {
     { id: 'firma',         name: 'Externe Firma', sort: 3 },
     { id: 'leitung',       name: 'Leitung',       sort: 4 },
     { id: 'andere',        name: 'Andere SB',     sort: 5 }
-  ]
+  ],
+  rahmenvertraege: []
 };
 
 // ─── Global State ───
@@ -48,7 +49,8 @@ window.stammdaten = {
   liegenschaften: [],
   anlagen: [],
   kategorien: [],
-  verantwortliche: []
+  verantwortliche: [],
+  rahmenvertraege: []
 };
 
 // ═══════════════════════════════════════════════
@@ -60,7 +62,7 @@ async function loadStammdatenFromFirestore() {
     const { getDocs } = window._fbFns;
     const { collection } = await import('https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js');
 
-    const types = ['liegenschaften', 'anlagen', 'kategorien', 'verantwortliche'];
+    const types = ['liegenschaften', 'anlagen', 'kategorien', 'verantwortliche', 'rahmenvertraege'];
     const localBackup = loadLocalStammdaten();
     let anyLoaded = false;
 
@@ -171,8 +173,9 @@ function loadLocalStammdaten() {
   try {
     const stored = JSON.parse(localStorage.getItem('betrieb_stammdaten'));
     if (stored && stored.anlagen) {
-      // Migrationsfähig: liegenschaften ggf. ergänzen
+      // Migrationsfähig: liegenschaften/rahmenvertraege ggf. ergänzen
       if (!stored.liegenschaften) stored.liegenschaften = JSON.parse(JSON.stringify(DEFAULT_STAMMDATEN.liegenschaften));
+      if (!stored.rahmenvertraege) stored.rahmenvertraege = [];
       return stored;
     }
   } catch {}
@@ -200,8 +203,42 @@ function getAnlagenForLiegenschaft(liegenschaftName) {
 function renderEinstellungenTab() {
   renderLiegenschaftenSection();
   renderAnlagenSection();
+  renderRahmenvertraegeSection();
   renderStammdatenSection('kategorien', 'kategorienList', false);
   renderStammdatenSection('verantwortliche', 'verantwortlicheList', false);
+}
+
+// Rahmenverträge: eigene Darstellung (Vertragsnehmer, RV-Nr, Laufzeit)
+function renderRahmenvertraegeSection() {
+  const container = document.getElementById('rahmenvertraegeList');
+  if (!container) return;
+
+  const items = window.stammdaten.rahmenvertraege || [];
+
+  if (!items.length) {
+    container.innerHTML = '<div class="stammdaten-empty">Noch keine Rahmenverträge.</div>';
+    return;
+  }
+
+  container.innerHTML = items.map(item => {
+    const abrufeCount = (window.abrufe || []).filter(a => a.rahmenvertragId === item.id).length;
+    const laufzeit = item.laufzeitBis
+      ? `Laufzeit bis ${fmt(item.laufzeitBis)}`
+      : 'Laufzeit offen';
+    return `
+    <div class="stammdaten-row">
+      <div class="stammdaten-row-content">
+        <div class="stammdaten-name">${esc(item.vertragsnehmer)} — ${esc(item.rvNummer)}
+          <span style="color:var(--text3);font-size:10px;font-family:var(--mono)">(${abrufeCount} Abrufe)</span>
+        </div>
+        <div class="stammdaten-description">${esc(laufzeit)}</div>
+      </div>
+      <div class="stammdaten-row-actions">
+        <button class="btn-icon" onclick="openStammdatumModal('rahmenvertraege', '${item.id}')" title="Bearbeiten">✎</button>
+        <button class="btn-icon btn-icon-danger" onclick="confirmDeleteStammdatum('rahmenvertraege', '${item.id}')" title="Löschen">✕</button>
+      </div>
+    </div>
+  `;}).join('');
 }
 
 // Liegenschaften: einfache Liste
@@ -329,11 +366,12 @@ function openStammdatumModal(type, id = null) {
     liegenschaften: 'Liegenschaft',
     anlagen: 'Anlage',
     kategorien: 'Kategorie',
-    verantwortliche: 'Verantwortliche/r'
+    verantwortliche: 'Verantwortliche/r',
+    rahmenvertraege: 'Rahmenvertrag'
   };
   
   document.getElementById('stammdatumModalTitle').textContent = 
-    isNew ? `Neue ${labels[type]}` : `${labels[type]} bearbeiten`;
+    isNew ? `Neue${type === 'rahmenvertraege' ? 'r' : ''} ${labels[type]}` : `${labels[type]} bearbeiten`;
   
   document.getElementById('sName').value = item?.name || '';
   document.getElementById('sDescription').value = item?.description || '';
@@ -356,9 +394,20 @@ function openStammdatumModal(type, id = null) {
   } else {
     lgField.style.display = 'none';
   }
+
+  // Rahmenvertrag: eigenes Feld-Set statt "Name" (Vertragsnehmer + RV-Nr + Laufzeit)
+  const isRv = type === 'rahmenvertraege';
+  document.getElementById('sNameField').style.display = isRv ? 'none' : 'block';
+  document.getElementById('sVertragsnehmerField').style.display = isRv ? 'block' : 'none';
+  document.getElementById('sRvNummerField').style.display = isRv ? 'block' : 'none';
+  document.getElementById('sLaufzeitField').style.display = isRv ? 'grid' : 'none';
+  document.getElementById('sVertragsnehmer').value = item?.vertragsnehmer || '';
+  document.getElementById('sRvNummer').value = item?.rvNummer || '';
+  document.getElementById('sLaufzeitVon').value = item?.laufzeitVon || '';
+  document.getElementById('sLaufzeitBis').value = item?.laufzeitBis || '';
   
   document.getElementById('stammdatumModalOverlay').classList.add('open');
-  setTimeout(() => document.getElementById('sName')?.focus(), 50);
+  setTimeout(() => document.getElementById(isRv ? 'sVertragsnehmer' : 'sName')?.focus(), 50);
 }
 
 function closeStammdatumModal() {
@@ -374,13 +423,27 @@ function saveStammdatum() {
   if (!editingStammdatum) return;
   
   const { type, id } = editingStammdatum;
-  const name = document.getElementById('sName').value.trim();
+  const isRv = type === 'rahmenvertraege';
+
   const description = document.getElementById('sDescription').value.trim();
   const liegenschaftId = type === 'anlagen' 
     ? document.getElementById('sLiegenschaft').value 
     : null;
+
+  // Rahmenvertrag: eigene Validierung + abgeleiteter Anzeigename
+  const vertragsnehmer = isRv ? document.getElementById('sVertragsnehmer').value.trim() : null;
+  const rvNummer = isRv ? document.getElementById('sRvNummer').value.trim() : null;
+  const laufzeitVon = isRv ? (document.getElementById('sLaufzeitVon').value || null) : null;
+  const laufzeitBis = isRv ? (document.getElementById('sLaufzeitBis').value || null) : null;
+
+  const name = isRv ? `${vertragsnehmer} — ${rvNummer}` : document.getElementById('sName').value.trim();
   
-  if (!name) {
+  if (isRv) {
+    if (!vertragsnehmer || !rvNummer) {
+      alert('Bitte Vertragsnehmer und Rahmenvertragsnummer eingeben.');
+      return;
+    }
+  } else if (!name) {
     alert('Bitte einen Namen eingeben.');
     return;
   }
@@ -397,6 +460,12 @@ function saveStammdatum() {
     item.name = name;
     if (type === 'anlagen' || type === 'liegenschaften') item.description = description;
     if (type === 'anlagen') item.liegenschaftId = liegenschaftId;
+    if (isRv) {
+      item.vertragsnehmer = vertragsnehmer;
+      item.rvNummer = rvNummer;
+      item.laufzeitVon = laufzeitVon;
+      item.laufzeitBis = laufzeitBis;
+    }
     saveStammdatumToFirestore(type, item);
   } else {
     // Neu anlegen
@@ -423,6 +492,12 @@ function saveStammdatum() {
     if (type === 'anlagen') {
       newItem.liegenschaftId = liegenschaftId;
     }
+    if (isRv) {
+      newItem.vertragsnehmer = vertragsnehmer;
+      newItem.rvNummer = rvNummer;
+      newItem.laufzeitVon = laufzeitVon;
+      newItem.laufzeitBis = laufzeitBis;
+    }
     
     window.stammdaten[type].push(newItem);
     saveStammdatumToFirestore(type, newItem);
@@ -444,7 +519,13 @@ function confirmDeleteStammdatum(type, id) {
   let msg = `"${item.name}" wirklich löschen?`;
   
   // Verwendungsprüfung
-  if (type === 'liegenschaften') {
+  if (type === 'rahmenvertraege') {
+    const inUse = (window.abrufe || []).filter(a => a.rahmenvertragId === id);
+    if (inUse.length > 0) {
+      msg += `\n\n⚠ Achtung: Wird in ${inUse.length} Vertragsabruf${inUse.length > 1 ? 'en' : ''} verwendet.`;
+      msg += '\nDiese Abrufe behalten die Referenz, der Rahmenvertrag ist dann aber nicht mehr im Dropdown wählbar.';
+    }
+  } else if (type === 'liegenschaften') {
     const anlagenCount = window.stammdaten.anlagen.filter(a => a.liegenschaftId === id).length;
     if (anlagenCount > 0) {
       alert(`Diese Liegenschaft hat noch ${anlagenCount} zugeordnete Anlage(n).\nBitte zuerst die Anlagen löschen oder einer anderen Liegenschaft zuordnen.`);
@@ -518,6 +599,75 @@ function refreshDropdowns() {
       ).join('');
     if (current) verSel.value = current;
   }
+
+  // ── Vertragsabruf-Modal (js/abrufe.js) ──
+  // Liegenschaften
+  const aLgSel = document.getElementById('aLiegenschaft');
+  if (aLgSel) {
+    const current = aLgSel.value;
+    aLgSel.innerHTML = '<option value="">— Wählen —</option>' +
+      window.stammdaten.liegenschaften.map(l =>
+        `<option value="${esc(l.name)}">${esc(l.name)}</option>`
+      ).join('');
+    if (current) aLgSel.value = current;
+  }
+  updateAbrufAnlagenDropdown();
+
+  // Bedarfsersteller (nutzt dieselbe Verantwortliche-Stammdaten-Liste)
+  const bedarfSel = document.getElementById('aBedarfsersteller');
+  if (bedarfSel) {
+    const current = bedarfSel.value;
+    bedarfSel.innerHTML = '<option value="">— Wählen —</option>' +
+      window.stammdaten.verantwortliche.map(v =>
+        `<option value="${esc(v.name)}">${esc(v.name)}</option>`
+      ).join('');
+    if (current) bedarfSel.value = current;
+  }
+
+  // Rahmenverträge
+  const rvSel = document.getElementById('aRahmenvertrag');
+  if (rvSel) {
+    const current = rvSel.value;
+    rvSel.innerHTML = '<option value="">— Wählen —</option>' +
+      (window.stammdaten.rahmenvertraege || []).map(r =>
+        `<option value="${r.id}">${esc(r.vertragsnehmer)} — ${esc(r.rvNummer)}</option>`
+      ).join('');
+    if (current) rvSel.value = current;
+  }
+}
+
+// Kaskadierung Anlage↔Liegenschaft im Vertragsabruf-Modal (analog Vorgang)
+function updateAbrufAnlagenDropdown() {
+  const lgSel = document.getElementById('aLiegenschaft');
+  const anlageSel = document.getElementById('aAnlage');
+  if (!anlageSel) return;
+
+  const selectedLg = lgSel ? lgSel.value : '';
+  const current = anlageSel.value;
+
+  const anlagen = selectedLg ? getAnlagenForLiegenschaft(selectedLg) : window.stammdaten.anlagen;
+
+  anlageSel.innerHTML = '<option value="">— Wählen —</option>' +
+    anlagen.map(a => `<option value="${esc(a.name)}">${esc(a.name)}</option>`).join('');
+
+  if (current && anlagen.find(a => a.name === current)) {
+    anlageSel.value = current;
+  }
+}
+
+function onAbrufLiegenschaftChange() {
+  updateAbrufAnlagenDropdown();
+}
+
+function onAbrufAnlageChange() {
+  const anlageSel = document.getElementById('aAnlage');
+  const lgSel = document.getElementById('aLiegenschaft');
+  if (!anlageSel || !lgSel || !anlageSel.value) return;
+
+  const lg = getLiegenschaftForAnlage(anlageSel.value);
+  if (lg && lgSel.value !== lg.name) {
+    lgSel.value = lg.name;
+  }
 }
 
 // Kaskadierung: Anlagen-Dropdown nach Liegenschaft filtern
@@ -583,3 +733,7 @@ window.getLiegenschaftForAnlage = getLiegenschaftForAnlage;
 window.getAnlagenForLiegenschaft = getAnlagenForLiegenschaft;
 window.loadLocalStammdaten = loadLocalStammdaten;
 window.saveLocalStammdaten = saveLocalStammdaten;
+window.renderRahmenvertraegeSection = renderRahmenvertraegeSection;
+window.updateAbrufAnlagenDropdown = updateAbrufAnlagenDropdown;
+window.onAbrufLiegenschaftChange = onAbrufLiegenschaftChange;
+window.onAbrufAnlageChange = onAbrufAnlageChange;

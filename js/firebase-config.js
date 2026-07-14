@@ -47,6 +47,7 @@ const auth         = getAuth(appVorgaenge);
 window._db_vorgaenge = db_vorgaenge;
 window._auth         = auth;
 window._fbCol_vorgaenge = () => collection(db_vorgaenge, 'vorgaenge');
+window._fbCol_abrufe = () => collection(db_vorgaenge, 'vertragsabrufe');
 window._fbFns = {
   getDocs, setDoc, deleteDoc, doc,
   signInWithPopup, GoogleAuthProvider, signOut
@@ -58,14 +59,19 @@ onAuthStateChanged(auth, user => {
   if (typeof updateAuthUI === 'function') updateAuthUI();
   if (user) {
     if (typeof loadVorgaengeFromFirestore === 'function') loadVorgaengeFromFirestore();
+    if (typeof loadAbrufeFromFirestore === 'function') loadAbrufeFromFirestore();
     if (typeof loadStammdatenFromFirestore === 'function') loadStammdatenFromFirestore();
   } else {
     if (typeof setSyncStatus === 'function') setSyncStatus('offline');
     window.vorgaenge = loadLocalDataVorgaenge();
+    if (typeof loadLocalDataAbrufe === 'function') {
+      window.abrufe = loadLocalDataAbrufe();
+    }
     if (typeof loadLocalStammdaten === 'function') {
       window.stammdaten = loadLocalStammdaten();
     }
     if (typeof renderRegister === 'function') renderRegister();
+    if (typeof renderAbrufeRegister === 'function') renderAbrufeRegister();
     if (typeof refreshDropdowns === 'function') refreshDropdowns();
   }
 });

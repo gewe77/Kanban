@@ -62,6 +62,18 @@ function saveLocalVorgaenge() {
   localStorage.setItem('betrieb_vorgaenge_v1', JSON.stringify(window.vorgaenge || []));
 }
 
+function loadLocalDataAbrufe() {
+  try {
+    return JSON.parse(localStorage.getItem('betrieb_abrufe_v1')) || [];
+  } catch {
+    return [];
+  }
+}
+
+function saveLocalAbrufe() {
+  localStorage.setItem('betrieb_abrufe_v1', JSON.stringify(window.abrufe || []));
+}
+
 // ── DB-Verbindungsstatus UI (Header) ──
 function setSyncStatus(state) {
   const dot = document.getElementById('dbStatusDot');
@@ -117,6 +129,8 @@ window.dueClass = dueClass;
 window.daysUntil = daysUntil;
 window.loadLocalDataVorgaenge = loadLocalDataVorgaenge;
 window.saveLocalVorgaenge = saveLocalVorgaenge;
+window.loadLocalDataAbrufe = loadLocalDataAbrufe;
+window.saveLocalAbrufe = saveLocalAbrufe;
 window.setSyncStatus = setSyncStatus;
 window.updateAuthUI = updateAuthUI;
 window.handleAuth = handleAuth;

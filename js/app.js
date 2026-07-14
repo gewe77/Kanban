@@ -19,13 +19,18 @@ function switchTab(tabName) {
     container.classList.toggle('active', container.id === `${tabName}-tab`);
   });
 
-  // Header-Buttons: nur im Register-Tab anzeigen
+  // Header-Buttons: nur im jeweils passenden Tab anzeigen
   document.querySelectorAll('.btn-vorgaenge-only').forEach(b => {
     b.style.display = tabName === 'vorgaenge' ? '' : 'none';
+  });
+  document.querySelectorAll('.btn-abrufe-only').forEach(b => {
+    b.style.display = tabName === 'abrufe' ? '' : 'none';
   });
 
   if (tabName === 'vorgaenge') {
     if (typeof renderRegister === 'function') renderRegister();
+  } else if (tabName === 'abrufe') {
+    if (typeof renderAbrufeRegister === 'function') renderAbrufeRegister();
   } else if (tabName === 'einstellungen') {
     if (typeof renderEinstellungenTab === 'function') renderEinstellungenTab();
   }
@@ -41,13 +46,17 @@ function setupKeyboard() {
     if (e.key === 'Escape') {
       if (typeof closeNewVorgangModal === 'function') closeNewVorgangModal();
       if (typeof closeVorgangDrawer === 'function') closeVorgangDrawer();
+      if (typeof closeNewAbrufModal === 'function') closeNewAbrufModal();
+      if (typeof closeAbrufDrawer === 'function') closeAbrufDrawer();
     }
 
-    // 'n': Neuer Vorgang
+    // 'n': Neuer Vorgang / Neuer Vertragsabruf (je nach aktivem Tab)
     if (e.key === 'n' && !e.ctrlKey && !e.metaKey &&
         !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) {
       if (activeTab === 'vorgaenge') {
         openNewVorgangModal();
+      } else if (activeTab === 'abrufe') {
+        openNewAbrufModal();
       }
     }
   });
@@ -72,6 +81,7 @@ function init() {
 
   // Lokale Daten laden (Fallback bis Firebase antwortet)
   window.vorgaenge = loadLocalDataVorgaenge();
+  window.abrufe = typeof loadLocalDataAbrufe === 'function' ? loadLocalDataAbrufe() : [];
   window.stammdaten = loadLocalStammdaten();
 
   // UI Setup
@@ -81,9 +91,13 @@ function init() {
   if (typeof setupRegisterFilters === 'function') {
     setupRegisterFilters();
   }
+  if (typeof setupAbrufeFilters === 'function') {
+    setupAbrufeFilters();
+  }
 
   // Initial render
   if (typeof renderRegister === 'function') renderRegister();
+  if (typeof renderAbrufeRegister === 'function') renderAbrufeRegister();
   if (typeof refreshDropdowns === 'function') refreshDropdowns();
 
   // Restore last active tab (default: vorgaenge)
@@ -92,6 +106,7 @@ function init() {
   switchTab(lastTab);
 
   console.log(`✓ Vorgänge: ${window.vorgaenge.length} Vorgänge`);
+  console.log(`✓ Vertragsabrufe: ${window.abrufe.length} Abrufe`);
   console.log(`✓ Stammdaten geladen (lokal)`);
 }
 
