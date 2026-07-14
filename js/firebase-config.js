@@ -1,16 +1,24 @@
 // ═══════════════════════════════════════════════
-// FIREBASE KONFIGURATION — TEST-VERSION
+// FIREBASE KONFIGURATION
 //
-// Isoliert den Anmelde-Fehler: Auth läuft testweise über einen
-// NEUEN, separat erstellten API-Key (nur mit Identity Toolkit +
-// Token Service API freigegeben). Firestore bleibt unverändert
-// am ursprünglichen Key hängen — wird hier nicht angefasst.
+// Ein Projekt (betrieb-vorgaenge), eine App-Instanz, ein Key —
+// für Authentication UND Firestore gemeinsam.
 //
-// Wenn die Anmeldung damit klappt: Der alte Key war/ist das
-// Problem, wir übernehmen dann den neuen Key dauerhaft (inkl.
-// Freigabe für Cloud Firestore API).
-// Wenn der gleiche Fehler bleibt: Es liegt nicht am Key, sondern
-// am Projekt/einer Organisationsrichtlinie.
+// WICHTIG: Auth und Firestore MÜSSEN dieselbe initializeApp()-
+// Instanz verwenden. Verwendet man zwei getrennte Instanzen
+// (selbst mit identischer projectId), erkennt Firestore die
+// Anmeldung der anderen Instanz nicht — request.auth bleibt
+// dann null und Regeln wie "if request.auth != null" blocken
+// mit "Missing or insufficient permissions", obwohl die
+// Anmeldung selbst erfolgreich war.
+//
+// Der aktuelle apiKey wurde am 14.07.2026 neu erstellt, weil
+// der ursprüngliche Key keine gültige Identity-Toolkit-
+// Freigabe hatte (auth/api-key-not-valid). Muss in der Google-
+// Cloud-Konsole für diesen Key freigegeben sein:
+//   - Identity Toolkit API
+//   - Token Service API
+//   - Cloud Firestore API   ← ggf. noch ergänzen!
 // ═══════════════════════════════════════════════
 
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js';
@@ -19,10 +27,8 @@ import { getFirestore, collection, getDocs, setDoc, deleteDoc, doc }
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut }
   from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js';
 
-// Projekt-Basisdaten bleiben gleich (betrieb-vorgaenge),
-// nur der apiKey unterscheidet sich zwischen Auth und Firestore.
 const firebaseConfigVorgaenge = {
-  apiKey:            "AIzaSyChAk5gQgv-rci1_zywUycLJYfyjRY18G8",   // alter Key — für Firestore
+  apiKey:            "AIzaSyALW75LLaRWhm2rBx7WzR9-Ce0AErpvQIk",
   authDomain:        "betrieb-vorgaenge.firebaseapp.com",
   projectId:         "betrieb-vorgaenge",
   storageBucket:     "betrieb-vorgaenge.firebasestorage.app",
@@ -30,17 +36,11 @@ const firebaseConfigVorgaenge = {
   appId:             "1:782751645551:web:866e6051657381f885729a"
 };
 
-const firebaseConfigAuthTest = {
-  ...firebaseConfigVorgaenge,
-  apiKey: "AIzaSyALW75LLaRWhm2rBx7WzR9-Ce0AErpvQIk"   // NEUER Test-Key — nur für Auth
-};
-
-// ─── Initialisierung: zwei App-Instanzen, ein Projekt, zwei Keys ───
-const appAuthTest  = initializeApp(firebaseConfigAuthTest, 'authtest');
+// ─── Eine App-Instanz für alles ───
 const appVorgaenge = initializeApp(firebaseConfigVorgaenge);
 
 const db_vorgaenge = getFirestore(appVorgaenge);
-const auth         = getAuth(appAuthTest);
+const auth         = getAuth(appVorgaenge);
 
 
 // ─── Global verfügbar machen ───
