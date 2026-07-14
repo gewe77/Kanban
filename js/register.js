@@ -411,18 +411,9 @@ function saveNewVorgang() {
 
   window.vorgaenge.push(newVorgang);
 
-  // Hook: Mail-Capture (falls aktiv)
-  if (typeof attachMailToNewVorgang === 'function') {
-    attachMailToNewVorgang(newVorgang);
-  }
-
   saveDataVorgaenge();
   closeNewVorgangModal();
   renderRegister();
-
-  if (typeof showCaptureToast === 'function' && newVorgang.mails && newVorgang.mails.length > 0) {
-    showCaptureToast(`✓ Vorgang ${newVorgang.vorgangsNr} aus Mail erstellt`);
-  }
 }
 
 // ═══════════════════════════════════════════════
@@ -937,7 +928,6 @@ window.KATEGORIEN = KATEGORIEN;
 window.VERANTWORTLICH = VERANTWORTLICH;
 window.loadVorgaengeFromFirestore = loadVorgaengeFromFirestore;
 window.renderRegister = renderRegister;
-window.renderVorgaengeTab = renderRegister; // Alias für app.js
 window.openNewVorgangModal = openNewVorgangModal;
 window.closeNewVorgangModal = closeNewVorgangModal;
 window.closeVorgangModalIfBg = closeVorgangModalIfBg;

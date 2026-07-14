@@ -518,17 +518,6 @@ function refreshDropdowns() {
       ).join('');
     if (current) verSel.value = current;
   }
-  
-  // Filter: Anlagen (alle, ohne Kaskade)
-  const filterAnlage = document.getElementById('filterAnlage');
-  if (filterAnlage) {
-    const current = filterAnlage.value;
-    filterAnlage.innerHTML = '<option value="">Alle Anlagen</option>' +
-      window.stammdaten.anlagen.map(a => 
-        `<option value="${esc(a.name)}">${esc(a.name)}</option>`
-      ).join('');
-    if (current) filterAnlage.value = current;
-  }
 }
 
 // Kaskadierung: Anlagen-Dropdown nach Liegenschaft filtern
