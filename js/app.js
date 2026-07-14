@@ -3,6 +3,12 @@
 // Tab-Switching, Initialisierung, Keyboard-Shortcuts
 // ═══════════════════════════════════════════════
 
+// Versionsnummer — bei jeder Dateiänderung durch Claude anzupassen.
+// Schema: vXX = größere Ausbaustufe (i.d.R. komplettes ZIP),
+//         vXX.NNN = fortlaufende Nummer für Änderungen an einzelnen
+//         Dateien seit der letzten vXX-Stufe. Wird im Header angezeigt.
+window.APP_VERSION = 'v14.002';
+
 let activeTab = 'vorgaenge';
 
 // ═══════════════════════════════════════════════
@@ -77,7 +83,10 @@ function setupTabs() {
 // INITIALIZATION
 // ═══════════════════════════════════════════════
 function init() {
-  console.log('🔧 Vorgangsregister startet…');
+  console.log(`🔧 Vorgangsregister startet… (${window.APP_VERSION})`);
+
+  const versionEl = document.getElementById('appVersion');
+  if (versionEl) versionEl.textContent = window.APP_VERSION;
 
   // Lokale Daten laden (Fallback bis Firebase antwortet)
   window.vorgaenge = loadLocalDataVorgaenge();

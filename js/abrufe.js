@@ -246,7 +246,7 @@ function renderAbrufeRegister() {
     if (!showBezahlte && a.status === 'bezahlt') return false;
     if (!suchbegriff) return true;
     const rv = getRahmenvertrag(a.rahmenvertragId);
-    const rvText = rv ? `${rv.vertragsnehmer} ${rv.rvNummer}` : '';
+    const rvText = rv ? `${rv.vertragsnehmer} ${rv.rvNummerVergabestelle || rv.rvNummer || ''} ${rv.rvNummerEAkte || ''}` : '';
     return (a.bedarf || '').toLowerCase().includes(suchbegriff) ||
            (a.anlage || '').toLowerCase().includes(suchbegriff) ||
            (a.liegenschaft || '').toLowerCase().includes(suchbegriff) ||
@@ -270,7 +270,7 @@ function renderAbrufeRegister() {
 
   container.innerHTML = liste.map(({ a, d }) => {
     const rv = getRahmenvertrag(a.rahmenvertragId);
-    const rvLabel = rv ? `${rv.vertragsnehmer} · ${rv.rvNummer}` : '— kein Rahmenvertrag —';
+    const rvLabel = rv ? `${rv.vertragsnehmer} · ${rv.rvNummerVergabestelle || rv.rvNummer || '—'}` : '— kein Rahmenvertrag —';
     const statusObj = VA_STATUS.find(s => s.id === a.status);
     const statusLabel = (a.status === 'teilabschluss' && a.teilrechnungenAnzahl)
       ? `Teilabschluss (${a.teilrechnungenAnzahl}. Teilrechnung)`
@@ -517,7 +517,11 @@ function openAbrufDrawer(abrufId) {
     : '';
 
   const rvHtml = rv
-    ? `${esc(rv.vertragsnehmer)} — ${esc(rv.rvNummer)}${rv.laufzeitBis ? ` (Laufzeit bis ${fmt(rv.laufzeitBis)})` : ''}`
+    ? (() => {
+        const vn = rv.rvNummerVergabestelle || rv.rvNummer || '—';
+        const nummern = rv.rvNummerEAkte ? `VN ${esc(vn)} · E-Akte ${esc(rv.rvNummerEAkte)}` : `VN ${esc(vn)}`;
+        return `${esc(rv.vertragsnehmer)} — ${nummern}${rv.laufzeitBis ? ` (Laufzeit bis ${fmt(rv.laufzeitBis)})` : ''}`;
+      })()
     : '<span style="color:var(--text3)">— nicht mehr in Stammdaten vorhanden —</span>';
 
   // Haushaltstitel: über Stammdaten-Referenz auflösen; Fallback auf alte

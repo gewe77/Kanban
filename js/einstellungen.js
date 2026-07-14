@@ -327,10 +327,14 @@ function renderRahmenvertraegeSection() {
     const laufzeit = item.laufzeitBis
       ? `Laufzeit bis ${fmt(item.laufzeitBis)}`
       : 'Laufzeit offen';
+    const vergabestelle = item.rvNummerVergabestelle || item.rvNummer || '—';
+    const nummernZeile = item.rvNummerEAkte
+      ? `VN ${esc(vergabestelle)} · E-Akte ${esc(item.rvNummerEAkte)}`
+      : `VN ${esc(vergabestelle)}`;
     return `
     <div class="stammdaten-row">
       <div class="stammdaten-row-content">
-        <div class="stammdaten-name">${esc(item.vertragsnehmer)} — ${esc(item.rvNummer)}
+        <div class="stammdaten-name">${esc(item.vertragsnehmer)} — ${nummernZeile}
           <span style="color:var(--text3);font-size:10px;font-family:var(--mono)">(${abrufeCount} Abrufe)</span>
         </div>
         <div class="stammdaten-description">${esc(laufzeit)}</div>
@@ -502,10 +506,13 @@ function openStammdatumModal(type, id = null) {
   const isRv = type === 'rahmenvertraege';
   document.getElementById('sNameField').style.display = (isRv || type === 'haushaltstitel') ? 'none' : 'block';
   document.getElementById('sVertragsnehmerField').style.display = isRv ? 'block' : 'none';
-  document.getElementById('sRvNummerField').style.display = isRv ? 'block' : 'none';
+  document.getElementById('sRvNummerVergabestelleField').style.display = isRv ? 'block' : 'none';
+  document.getElementById('sRvNummerEAkteField').style.display = isRv ? 'block' : 'none';
   document.getElementById('sLaufzeitField').style.display = isRv ? 'grid' : 'none';
   document.getElementById('sVertragsnehmer').value = item?.vertragsnehmer || '';
-  document.getElementById('sRvNummer').value = item?.rvNummer || '';
+  // Legacy-Fallback: ältere Einträge hatten nur ein einzelnes rvNummer-Feld
+  document.getElementById('sRvNummerVergabestelle').value = item?.rvNummerVergabestelle || item?.rvNummer || '';
+  document.getElementById('sRvNummerEAkte').value = item?.rvNummerEAkte || '';
   document.getElementById('sLaufzeitVon').value = item?.laufzeitVon || '';
   document.getElementById('sLaufzeitBis').value = item?.laufzeitBis || '';
 
@@ -549,7 +556,8 @@ function saveStammdatum() {
 
   // Rahmenvertrag: eigene Validierung + abgeleiteter Anzeigename
   const vertragsnehmer = isRv ? document.getElementById('sVertragsnehmer').value.trim() : null;
-  const rvNummer = isRv ? document.getElementById('sRvNummer').value.trim() : null;
+  const rvNummerVergabestelle = isRv ? document.getElementById('sRvNummerVergabestelle').value.trim() : null;
+  const rvNummerEAkte = isRv ? (document.getElementById('sRvNummerEAkte').value.trim() || null) : null;
   const laufzeitVon = isRv ? (document.getElementById('sLaufzeitVon').value || null) : null;
   const laufzeitBis = isRv ? (document.getElementById('sLaufzeitBis').value || null) : null;
 
@@ -562,7 +570,7 @@ function saveStammdatum() {
 
   let name;
   if (isRv) {
-    name = `${vertragsnehmer} — ${rvNummer}`;
+    name = `${vertragsnehmer} — ${rvNummerVergabestelle}`;
   } else if (isHt) {
     name = htObjektnummer ? `${htTitel} · ${htObjektnummer} – ${htBezeichnung}` : `${htTitel} – ${htBezeichnung}`;
   } else {
@@ -570,8 +578,8 @@ function saveStammdatum() {
   }
   
   if (isRv) {
-    if (!vertragsnehmer || !rvNummer) {
-      alert('Bitte Vertragsnehmer und Rahmenvertragsnummer eingeben.');
+    if (!vertragsnehmer || !rvNummerVergabestelle) {
+      alert('Bitte Vertragsnehmer und Vertragsnummer (Vergabestelle) eingeben.');
       return;
     }
   } else if (isHt) {
@@ -598,7 +606,8 @@ function saveStammdatum() {
     if (type === 'anlagen') item.liegenschaftId = liegenschaftId;
     if (isRv) {
       item.vertragsnehmer = vertragsnehmer;
-      item.rvNummer = rvNummer;
+      item.rvNummerVergabestelle = rvNummerVergabestelle;
+      item.rvNummerEAkte = rvNummerEAkte;
       item.laufzeitVon = laufzeitVon;
       item.laufzeitBis = laufzeitBis;
     }
@@ -637,7 +646,8 @@ function saveStammdatum() {
     }
     if (isRv) {
       newItem.vertragsnehmer = vertragsnehmer;
-      newItem.rvNummer = rvNummer;
+      newItem.rvNummerVergabestelle = rvNummerVergabestelle;
+      newItem.rvNummerEAkte = rvNummerEAkte;
       newItem.laufzeitVon = laufzeitVon;
       newItem.laufzeitBis = laufzeitBis;
     }
@@ -785,9 +795,11 @@ function refreshDropdowns() {
   if (rvSel) {
     const current = rvSel.value;
     rvSel.innerHTML = '<option value="">— Wählen —</option>' +
-      (window.stammdaten.rahmenvertraege || []).map(r =>
-        `<option value="${r.id}">${esc(r.vertragsnehmer)} — ${esc(r.rvNummer)}</option>`
-      ).join('');
+      (window.stammdaten.rahmenvertraege || []).map(r => {
+        const vn = r.rvNummerVergabestelle || r.rvNummer || '—';
+        const label = r.rvNummerEAkte ? `${r.vertragsnehmer} — VN ${vn} · E-Akte ${r.rvNummerEAkte}` : `${r.vertragsnehmer} — VN ${vn}`;
+        return `<option value="${r.id}">${esc(label)}</option>`;
+      }).join('');
     if (current) rvSel.value = current;
   }
 }
