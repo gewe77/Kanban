@@ -33,6 +33,7 @@
   
   <nav class="nav-tabs">
     <button class="nav-tab active" data-tab="vorgaenge">▤ Vorgangsregister</button>
+    <button class="nav-tab" data-tab="abrufe">📑 Vertragsabrufe</button>
     <button class="nav-tab" data-tab="einstellungen">⚙ Einstellungen</button>
   </nav>
   
@@ -42,6 +43,7 @@
     </span>
     <button class="btn btn-auth-off" id="authBtn" onclick="handleAuth()">○ Anmelden</button>
     <button class="btn btn-primary btn-vorgaenge-only" onclick="openNewVorgangModal()">+ Neuer Vorgang</button>
+    <button class="btn btn-primary btn-abrufe-only" onclick="openNewAbrufModal()">+ Neuer Vertragsabruf</button>
   </div>
 </header>
 
@@ -84,6 +86,39 @@
 
     <div class="register-list" id="registerList">
       <div class="empty">— Klicke "Neuer Vorgang" zum Anlegen —</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     TAB 2: VERTRAGSABRUFE
+     Leistungsabrufe aus Rahmenverträgen. Eigener
+     Lebenszyklus (Anforderung → Ausführung → Abschluss),
+     aber gleiches Register-Prinzip wie beim Vorgangsregister:
+     flach, nach Dringlichkeit sortiert.
+═══════════════════════════════════════════════ -->
+<div class="tab-container" id="abrufe-tab">
+  <div class="vorgaenge-wrap">
+
+    <div class="vorgaenge-header">
+      <h2>Vertragsabrufe <span id="abrufeCount" style="color:var(--text3);font-size:11px">(0)</span></h2>
+    </div>
+
+    <div class="register-summary" id="abrufeSummary">
+      <!-- Dynamisch gefüllt -->
+    </div>
+
+    <div class="register-toolbar">
+      <input type="text" class="filter-input" id="abrufeSearch" placeholder="🔍 Bedarf, Vertragsnehmer, Anlage oder Abruf-Nr suchen…" style="flex:1;min-width:160px">
+      <label class="register-toggle-erledigt">
+        <input type="checkbox" id="abrufeShowErledigt">
+        Bezahlte einblenden
+      </label>
+    </div>
+
+    <div class="register-list" id="abrufeList">
+      <div class="empty">— Klicke "Neuer Vertragsabruf" zum Anlegen —</div>
     </div>
 
   </div>
@@ -138,6 +173,20 @@
       </div>
     </div>
 
+    <!-- Rahmenverträge -->
+    <div class="stammdaten-section">
+      <div class="stammdaten-section-header">
+        <div class="stammdaten-section-title">📑 Rahmenverträge</div>
+        <div class="stammdaten-section-meta">Für Vertragsabrufe</div>
+      </div>
+      <div class="stammdaten-list" id="rahmenvertraegeList">
+        <!-- Dynamisch gefüllt -->
+      </div>
+      <div class="stammdaten-section-add">
+        <button class="btn btn-primary" onclick="openStammdatumModal('rahmenvertraege')">+ Neuer Rahmenvertrag</button>
+      </div>
+    </div>
+
     <!-- Kategorien -->
     <div class="stammdaten-section">
       <div class="stammdaten-section-header">
@@ -179,13 +228,31 @@
       <button class="btn" onclick="closeStammdatumModal()">✕</button>
     </div>
     <div class="modal-body">
-      <div class="field">
+      <div class="field" id="sNameField">
         <label class="field-label">Name <span class="req">*</span></label>
         <input type="text" id="sName" placeholder="z.B. RTG, Wartung, Meisterbereich">
       </div>
       <div class="field" id="sLiegenschaftField" style="display:none">
         <label class="field-label">Liegenschaft <span class="req">*</span></label>
         <select id="sLiegenschaft"></select>
+      </div>
+      <div class="field" id="sVertragsnehmerField" style="display:none">
+        <label class="field-label">Vertragsnehmer <span class="req">*</span></label>
+        <input type="text" id="sVertragsnehmer" placeholder="z.B. SES">
+      </div>
+      <div class="field" id="sRvNummerField" style="display:none">
+        <label class="field-label">Rahmenvertragsnummer <span class="req">*</span></label>
+        <input type="text" id="sRvNummer" placeholder="z.B. RV-2024-0007">
+      </div>
+      <div class="field-row2" id="sLaufzeitField" style="display:none">
+        <div class="field">
+          <label class="field-label">Laufzeit von (optional)</label>
+          <input type="date" id="sLaufzeitVon">
+        </div>
+        <div class="field">
+          <label class="field-label">Laufzeit bis (optional)</label>
+          <input type="date" id="sLaufzeitBis">
+        </div>
       </div>
       <div class="field" id="sDescriptionField" style="display:none">
         <label class="field-label">Beschreibung (optional)</label>
@@ -304,10 +371,95 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════
+     VERTRAGSABRUFE: NEUER ABRUF MODAL
+═══════════════════════════════════════════════ -->
+<div class="modal-overlay" id="abrufModalOverlay" onclick="closeAbrufModalIfBg(event)">
+  <div class="modal">
+    <div class="modal-head">
+      <span class="modal-title">Neuer Vertragsabruf</span>
+      <button class="btn" onclick="closeNewAbrufModal()">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <div class="field">
+        <label class="field-label">Rahmenvertrag <span class="req">*</span></label>
+        <select id="aRahmenvertrag">
+          <option value="">— Wählen —</option>
+        </select>
+      </div>
+
+      <div class="field-row2">
+        <div class="field">
+          <label class="field-label">Liegenschaft <span class="req">*</span></label>
+          <select id="aLiegenschaft" onchange="onAbrufLiegenschaftChange()">
+            <option value="">— Wählen —</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label">Anlage <span class="req">*</span></label>
+          <select id="aAnlage" onchange="onAbrufAnlageChange()">
+            <option value="">— Wählen —</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Bedarf <span class="req">*</span></label>
+        <textarea id="aBedarf" placeholder="Was wird benötigt? z.B. Beschaffung Pumpe XY, Halle 3"></textarea>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Bedarfsersteller <span class="req">*</span></label>
+        <select id="aBedarfsersteller">
+          <option value="">— Wählen —</option>
+        </select>
+      </div>
+
+      <div class="field-row2">
+        <div class="field">
+          <label class="field-label">Termin Ausführung (falls bekannt)</label>
+          <input type="date" id="aTermin">
+        </div>
+        <div class="field">
+          <label class="field-label">Puffer (Tage vorher)</label>
+          <input type="number" id="aPuffertage" min="0" value="3">
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Nachweis / Referenz</label>
+        <input type="text" id="aNachweis" placeholder="z.B. Mail v. 5.6., Aktenzeichen">
+      </div>
+
+    </div>
+    <div class="modal-foot">
+      <button class="btn" onclick="closeNewAbrufModal()">Abbrechen</button>
+      <button class="btn btn-primary" onclick="saveNewAbruf()">Anlegen →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     VERTRAGSABRUFE: DETAIL DRAWER
+═══════════════════════════════════════════════ -->
+<div class="drawer-overlay" id="aDrawerOverlay" onclick="closeAbrufDrawer()"></div>
+<div class="drawer" id="aDrawer">
+  <div class="drawer-head">
+    <div class="drawer-head-title" id="aDrawerTitle"></div>
+    <div class="drawer-head-actions">
+      <button class="btn btn-danger" onclick="deleteAbruf()">Löschen</button>
+      <button class="btn" onclick="closeAbrufDrawer()">✕</button>
+    </div>
+  </div>
+  <div class="drawer-body" id="aDrawerBody"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
      SCRIPTS
 ═══════════════════════════════════════════════ -->
 <script src="js/common.js"></script>
 <script src="js/register.js"></script>
+<script src="js/abrufe.js"></script>
 <script src="js/einstellungen.js"></script>
 <script src="js/app.js"></script>
 

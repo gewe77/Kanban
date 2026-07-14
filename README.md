@@ -2,7 +2,8 @@
 
 Web-App für Betriebsingenieure mit:
 - 📋 **Vorgangsregister** — eine einzige, nach Dringlichkeit sortierte Liste (kein Board, keine Ordner). Jeder Vorgang trägt Frist + Puffer + automatisch berechnete Wiedervorlage und bewegt sich von selbst nach oben, sobald sein Termin näher rückt
-- ⚙️ **Einstellungen** — Stammdaten-Verwaltung (Liegenschaften, Anlagen, Kategorien, Verantwortliche)
+- 📑 **Vertragsabrufe** — Leistungsabrufe aus Rahmenverträgen, eigener Lebenszyklus (Anforderung → Ausführung → Abschluss), gleiches Register-Prinzip wie oben. Details siehe Abschnitt "Vertragsabrufe" unten
+- ⚙️ **Einstellungen** — Stammdaten-Verwaltung (Liegenschaften, Anlagen, Rahmenverträge, Kategorien, Verantwortliche)
 
 > **Hinweis:** Das frühere Kanban-Board sowie die Heute-/Aktiv-Ansichten wurden entfernt.
 > Sie hatten sich in der Praxis nicht bewährt (Übertrag aus Outlook unzuverlässig,
@@ -22,9 +23,14 @@ kanban-betrieb/
     ├── firebase-config.js  # Firestore-Instanz (betrieb-vorgaenge) + Auth
     ├── common.js           # Utilities (Datum, Escape, LocalStorage)
     ├── register.js         # Vorgangsregister: Dringlichkeit, Drawer, Schritte, Log
-    ├── einstellungen.js    # Stammdaten-Verwaltung
+    ├── abrufe.js           # Vertragsabrufe: eigener Lebenszyklus, Teilrechnungen, Drawer
+    ├── einstellungen.js    # Stammdaten-Verwaltung (inkl. Rahmenverträge)
     └── app.js              # Tab-Switching, Init, Keyboard
 ```
+
+`abrufe.js` ist bewusst komplett unabhängig von `register.js` gehalten (eigene
+Collection, eigene Funktionen, keine gemeinsamen Top-Level-Funktionen) — Änderungen
+am einen Register können das andere nicht versehentlich beeinflussen.
 
 ## Firebase-Setup
 
@@ -65,14 +71,21 @@ damit nicht zu viele Vorgänge gleichzeitig als "aktiv" erscheinen.
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /vorgaenge/{id}                   { allow read, write: if request.auth != null; }
-    match /stammdaten_liegenschaften/{id}   { allow read, write: if request.auth != null; }
-    match /stammdaten_anlagen/{id}          { allow read, write: if request.auth != null; }
-    match /stammdaten_kategorien/{id}       { allow read, write: if request.auth != null; }
-    match /stammdaten_verantwortliche/{id}  { allow read, write: if request.auth != null; }
+    match /vorgaenge/{id}                    { allow read, write: if request.auth != null; }
+    match /vertragsabrufe/{id}                { allow read, write: if request.auth != null; }
+    match /stammdaten_liegenschaften/{id}    { allow read, write: if request.auth != null; }
+    match /stammdaten_anlagen/{id}           { allow read, write: if request.auth != null; }
+    match /stammdaten_rahmenvertraege/{id}   { allow read, write: if request.auth != null; }
+    match /stammdaten_kategorien/{id}        { allow read, write: if request.auth != null; }
+    match /stammdaten_verantwortliche/{id}   { allow read, write: if request.auth != null; }
   }
 }
 ```
+
+> **Hinweis:** Falls die Firestore-Regeln in der Konsole bereits mit einer
+> allgemeineren Regel arbeiten (z.B. `match /{document=**}`), ist keine Änderung
+> nötig — die neue Collection `vertragsabrufe` und `stammdaten_rahmenvertraege`
+> greifen dann automatisch dieselbe Regel wie alle anderen Collections.
 
 ## Stammdaten-Hierarchie
 
@@ -94,11 +107,59 @@ Analog zum Kanban-Board:
 - Neue Schritte am Ende anhängen
 - Der erste offene Schritt wird als "Nächster Schritt" angezeigt
 
+## Vertragsabrufe
+
+Leistungsabrufe aus Rahmenverträgen (fester Vertragsnehmer, feste Rahmenvertrags-
+nummer, feste Laufzeit) — vom gemeldeten Bedarf bis zur bezahlten Rechnung.
+Eigene Firestore-Collection (`vertragsabrufe`), eigenes Register-Tab, komplett
+unabhängig von `register.js` implementiert (siehe `js/abrufe.js`).
+
+### Lebenszyklus (3 Phasen, 10 Status)
+
+Die Zeile im Register zeigt bewusst nur **3 Icon-Formen** (Farbe = Dringlichkeit,
+identisch zum Vorgangsregister), dahinter den konkreten Status als Text:
+
+| Phase | Icon | Status |
+|-------|------|--------|
+| Anforderung | 📝 | Bedarf gemeldet → Rahmenabruf wird erstellt → Zur Zeichnung → Versendet an Firma |
+| Ausführung | ⚙ | Terminiert → In Ausführung |
+| Abschluss | ✅ (◐ bei Teilabschluss) | Teilabschluss → Abgeschlossen → Rechnung → Bezahlt |
+
+`Bezahlt` ist der Terminal-Status (Rang 99, ausgeblendet — analog zu
+"erledigt/archiviert" im Vorgangsregister).
+
+### Teilrechnungen
+
+Manche Leistungen werden nur teilweise abgeschlossen und als Teilrechnung
+abgerechnet. Bewusst **keine Buchhaltung**, nur Nachvollziehbarkeit: ein Zähler
+(`teilrechnungenAnzahl`) plus ein Log-Eintrag pro erfasster Teilrechnung
+(Kurznotiz, kein Betrag). Der Status "Teilabschluss" wird manuell im
+Status-Dropdown gesetzt, unabhängig vom Teilrechnungs-Zähler.
+
+### Abrufvermerk
+
+Freitext-Feld für die haushaltsrechtliche Begründung, warum die Leistung
+abgerufen werden muss. Eigener, immer sichtbarer Drawer-Bereich, editierbar
+wie Termin/Verwaltungsdaten (explizites Speichern, kein Blur-Autosave).
+
+### Verwaltungsdaten (progressive Erfassung)
+
+Bei der Bedarfsmeldung sind Sachbearbeiter, Titel (Haushaltsmittel),
+Objektnummer und Auftragswert meist noch nicht bekannt — sie werden erst nach
+Übergabe an den Bürosachbearbeiter ergänzt. Deshalb kein Pflichtfeld beim
+Anlegen, sondern ein eigener editierbarer Bereich im Drawer.
+
+### Rahmenverträge (Stammdaten)
+
+Neue Stammdaten-Kategorie in den Einstellungen: Vertragsnehmer (z.B. "SES"),
+Rahmenvertragsnummer, Laufzeit von/bis. Wird im "Neuer Vertragsabruf"-Modal
+sowie im Register/Drawer referenziert (`rahmenvertragId`).
+
 ## Keyboard-Shortcuts
 
 | Taste | Funktion |
 |-------|----------|
-| `n` | Neuer Vorgang |
+| `n` | Neuer Vorgang / Neuer Vertragsabruf (je nach aktivem Tab) |
 | `Esc` | Alle Overlays schließen |
 
 ## Roadmap
@@ -110,5 +171,6 @@ Analog zum Kanban-Board:
 - [x] Phase 2d: Mail-Capture (Quick-Capture + Smart-Parser) — *in v11 entfernt*
 - [x] Phase 2e: Vorgangsregister mit Dringlichkeits-Logik, Puffer/Wiedervorlage, Soft-WIP-Limit
 - [x] v11: Bereinigung — Mail-Capture entfernt, Projekt auf reines Vorgangsregister reduziert
+- [x] v12: Vertragsabrufe — eigenes Register für Leistungsabrufe aus Rahmenverträgen (3-Phasen-Lebenszyklus, Teilrechnungen, Abrufvermerk, Rahmenverträge-Stammdaten)
 - [ ] Phase 3: Wartungsmanagement (eigene Firestore-Instanz)
 - [ ] Phase 4: Betriebsstatistik (Dashboard)
