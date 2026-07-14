@@ -187,6 +187,20 @@
       </div>
     </div>
 
+    <!-- Haushaltstitel -->
+    <div class="stammdaten-section">
+      <div class="stammdaten-section-header">
+        <div class="stammdaten-section-title">💶 Haushaltstitel</div>
+        <div class="stammdaten-section-meta">Titel / Objektnummer für Vertragsabrufe</div>
+      </div>
+      <div class="stammdaten-list" id="haushaltstitelList">
+        <!-- Dynamisch gefüllt -->
+      </div>
+      <div class="stammdaten-section-add">
+        <button class="btn btn-primary" onclick="openStammdatumModal('haushaltstitel')">+ Neuer Haushaltstitel</button>
+      </div>
+    </div>
+
     <!-- Kategorien -->
     <div class="stammdaten-section">
       <div class="stammdaten-section-header">
@@ -257,6 +271,26 @@
       <div class="field" id="sDescriptionField" style="display:none">
         <label class="field-label">Beschreibung (optional)</label>
         <input type="text" id="sDescription" placeholder="z.B. Rückkühltürme Gebäude X, Halle 3">
+      </div>
+      <div class="field" id="sTitelField" style="display:none">
+        <label class="field-label">Titel <span class="req">*</span></label>
+        <input type="text" id="sTitel" placeholder="z.B. 519 01">
+      </div>
+      <div class="field" id="sObjektnummerField" style="display:none">
+        <label class="field-label">Objektnummer (optional)</label>
+        <input type="text" id="sObjektnummer" placeholder="z.B. 0274 9741">
+      </div>
+      <div class="field" id="sBezeichnungField" style="display:none">
+        <label class="field-label">Bezeichnung <span class="req">*</span></label>
+        <input type="text" id="sBezeichnung" placeholder="z.B. Bauunterhalt – Bestandsbauten">
+      </div>
+      <div class="field" id="sKapitelField" style="display:none">
+        <label class="field-label">Kapitel (optional)</label>
+        <input type="text" id="sKapitel" placeholder="z.B. 0212">
+      </div>
+      <div class="field" id="sErlaeuterungField" style="display:none">
+        <label class="field-label">Erläuterung (optional)</label>
+        <textarea id="sErlaeuterung" placeholder="Was diese Objektnummer/dieser Titel abdeckt bzw. wofür sie/er gilt…"></textarea>
       </div>
     </div>
     <div class="modal-foot">

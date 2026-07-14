@@ -3,7 +3,7 @@
 Web-App für Betriebsingenieure mit:
 - 📋 **Vorgangsregister** — eine einzige, nach Dringlichkeit sortierte Liste (kein Board, keine Ordner). Jeder Vorgang trägt Frist + Puffer + automatisch berechnete Wiedervorlage und bewegt sich von selbst nach oben, sobald sein Termin näher rückt
 - 📑 **Vertragsabrufe** — Leistungsabrufe aus Rahmenverträgen, eigener Lebenszyklus (Anforderung → Ausführung → Abschluss), gleiches Register-Prinzip wie oben. Details siehe Abschnitt "Vertragsabrufe" unten
-- ⚙️ **Einstellungen** — Stammdaten-Verwaltung (Liegenschaften, Anlagen, Rahmenverträge, Kategorien, Verantwortliche)
+- ⚙️ **Einstellungen** — Stammdaten-Verwaltung (Liegenschaften, Anlagen, Rahmenverträge, Haushaltstitel, Kategorien, Verantwortliche)
 
 > **Hinweis:** Das frühere Kanban-Board sowie die Heute-/Aktiv-Ansichten wurden entfernt.
 > Sie hatten sich in der Praxis nicht bewährt (Übertrag aus Outlook unzuverlässig,
@@ -76,6 +76,7 @@ service cloud.firestore {
     match /stammdaten_liegenschaften/{id}    { allow read, write: if request.auth != null; }
     match /stammdaten_anlagen/{id}           { allow read, write: if request.auth != null; }
     match /stammdaten_rahmenvertraege/{id}   { allow read, write: if request.auth != null; }
+    match /stammdaten_haushaltstitel/{id}    { allow read, write: if request.auth != null; }
     match /stammdaten_kategorien/{id}        { allow read, write: if request.auth != null; }
     match /stammdaten_verantwortliche/{id}   { allow read, write: if request.auth != null; }
   }
@@ -154,6 +155,22 @@ Anlegen, sondern ein eigener editierbarer Bereich im Drawer.
 Neue Stammdaten-Kategorie in den Einstellungen: Vertragsnehmer (z.B. "SES"),
 Rahmenvertragsnummer, Laufzeit von/bis. Wird im "Neuer Vertragsabruf"-Modal
 sowie im Register/Drawer referenziert (`rahmenvertragId`).
+
+### Haushaltstitel (Stammdaten)
+
+Aus der internen Titel-/Objektkontenübersicht importiert (Titel, Objektnummer,
+Bezeichnung, Kapitel, Erläuterung — 51 Einträge, Stand 12/2018). Ersetzt die
+vorherige freie Texteingabe für Titel/Objektnummer durch ein echtes Dropdown
+(`haushaltstitelId`-Referenz), gruppiert nach Kapitel. Die Erläuterung wird
+als Tooltip auf den Dropdown-Einträgen sowie in der Detailansicht nach der
+Auswahl angezeigt. Titel/Objektnummer/Bezeichnung/Kapitel/Erläuterung sind
+über Einstellungen frei bearbeitbar (hinzufügen, ändern, löschen) — genau wie
+bei den anderen Stammdaten-Kategorien.
+
+Abrufe, die vor dieser Umstellung angelegt wurden, behalten ihre alten
+Freitext-Werte (`titel`/`objektnummer`) und werden im Drawer weiterhin
+angezeigt (mit Hinweis "alt erfasst") — keine automatische Migration, um
+keine Annahmen über eine passende Zuordnung zu treffen.
 
 ## Keyboard-Shortcuts
 
