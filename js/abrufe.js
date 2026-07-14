@@ -218,10 +218,14 @@ function computeDringlichkeitAbruf(a) {
 }
 
 // ═══════════════════════════════════════════════
-// HELPER: Rahmenvertrag zu ID finden
+// HELPER: Rahmenvertrag / Haushaltstitel zu ID finden
 // ═══════════════════════════════════════════════
 function getRahmenvertrag(id) {
   return (window.stammdaten?.rahmenvertraege || []).find(r => r.id === id) || null;
+}
+
+function getHaushaltstitel(id) {
+  return (window.stammdaten?.haushaltstitel || []).find(h => h.id === id) || null;
 }
 
 // ═══════════════════════════════════════════════
@@ -390,10 +394,10 @@ function saveNewAbruf() {
     bedarf: bedarf,
     bedarfsersteller: bedarfsersteller,
     sachbearbeiter: null,
-    titel: null,
-    objektnummer: null,
+    haushaltstitelId: null,
     auftragswert: null,
     abrufvermerk: null,
+    positionen: null,
     status: 'bedarf',
     terminAusfuehrung: terminAusfuehrung,
     pufferTage: pufferTage,
@@ -466,6 +470,26 @@ function openAbrufDrawer(abrufId) {
     ? `${esc(rv.vertragsnehmer)} — ${esc(rv.rvNummer)}${rv.laufzeitBis ? ` (Laufzeit bis ${fmt(rv.laufzeitBis)})` : ''}`
     : '<span style="color:var(--text3)">— nicht mehr in Stammdaten vorhanden —</span>';
 
+  // Haushaltstitel: über Stammdaten-Referenz auflösen; Fallback auf alte
+  // Freitext-Felder (titel/objektnummer), falls der Abruf noch aus der
+  // Zeit vor der Stammdaten-Anbindung stammt.
+  const ht = a.haushaltstitelId ? getHaushaltstitel(a.haushaltstitelId) : null;
+  let htHtml;
+  if (ht) {
+    htHtml = ht.objektnummer
+      ? `${esc(ht.titel)} · ${esc(ht.objektnummer)} <span style="color:var(--text2)">– ${esc(ht.bezeichnung)}</span>`
+      : `${esc(ht.titel)} <span style="color:var(--text2)">– ${esc(ht.bezeichnung)}</span>`;
+    if (ht.erlaeuterung) {
+      htHtml += `<div style="color:var(--text3);font-size:11px;margin-top:3px;white-space:pre-line">${esc(ht.erlaeuterung)}</div>`;
+    }
+  } else if (a.haushaltstitelId) {
+    htHtml = '<span style="color:var(--text3)">— nicht mehr in Stammdaten vorhanden —</span>';
+  } else if (a.titel || a.objektnummer) {
+    htHtml = `${esc(a.titel || '—')} · ${esc(a.objektnummer || '—')} <span style="color:var(--text3)">(alt erfasst)</span>`;
+  } else {
+    htHtml = '—';
+  }
+
   document.getElementById('aDrawerBody').innerHTML = `
     <div class="drawer-section">
       <div class="drawer-section-title">Dringlichkeit</div>
@@ -511,12 +535,8 @@ function openAbrufDrawer(abrufId) {
             <div class="dfield-val">${esc(a.sachbearbeiter || '—')}</div>
           </div>
           <div>
-            <div class="dfield-label">Titel</div>
-            <div class="dfield-val">${esc(a.titel || '—')}</div>
-          </div>
-          <div>
-            <div class="dfield-label">Objektnummer</div>
-            <div class="dfield-val">${esc(a.objektnummer || '—')}</div>
+            <div class="dfield-label">Haushaltstitel</div>
+            <div class="dfield-val">${htHtml}</div>
           </div>
           <div>
             <div class="dfield-label">Auftragswert</div>
@@ -532,6 +552,14 @@ function openAbrufDrawer(abrufId) {
       <div id="aVermerkView">
         <div class="dfield-val">${a.abrufvermerk ? esc(a.abrufvermerk) : '<span style="color:var(--text3)">— noch nicht erfasst —</span>'}</div>
         <button class="btn" style="margin-top:8px" onclick="editAbrufVermerk()">Bearbeiten</button>
+      </div>
+    </div>
+
+    <div class="drawer-section">
+      <div class="drawer-section-title">Abgerufene Positionen <span style="color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">(aus dem Rahmenvertrag)</span></div>
+      <div id="aPositionenView">
+        <div class="va-positionen-view">${a.positionen ? esc(a.positionen) : '<span style="color:var(--text3);font-family:var(--sans)">— noch nicht erfasst —</span>'}</div>
+        <button class="btn" style="margin-top:8px" onclick="editAbrufPositionen()">Bearbeiten</button>
       </div>
     </div>
 
@@ -674,7 +702,7 @@ function saveAbrufTermin() {
   openAbrufDrawer(drawerAbrufId);
 }
 
-// ─── Verwaltungsdaten bearbeiten (Sachbearbeiter/Titel/Objektnummer/Auftragswert) ───
+// ─── Verwaltungsdaten bearbeiten (Sachbearbeiter/Haushaltstitel/Auftragswert) ───
 // Diese Felder sind bei Bedarfsmeldung typischerweise noch nicht
 // bekannt und kommen erst nach Übergabe an den Bürosachbearbeiter
 // dazu — deshalb separat editierbar statt Pflichtfeld bei Anlage.
@@ -685,6 +713,17 @@ function editAbrufVerwaltung() {
   const view = document.getElementById('aVerwaltungView');
   if (!view || view.querySelector('.frist-edit-form')) return;
 
+  const htListe = [...(window.stammdaten?.haushaltstitel || [])].sort((x, y) => (x.sort ?? 99) - (y.sort ?? 99));
+  const kapitel = [...new Set(htListe.map(h => h.kapitel || '—'))];
+  const optionsHtml = kapitel.map(kap => {
+    const opts = htListe.filter(h => (h.kapitel || '—') === kap).map(h => {
+      const label = h.objektnummer ? `${h.titel} · ${h.objektnummer} – ${h.bezeichnung}` : `${h.titel} – ${h.bezeichnung}`;
+      const title = h.erlaeuterung ? ` title="${esc(h.erlaeuterung)}"` : '';
+      return `<option value="${h.id}"${title} ${a.haushaltstitelId === h.id ? 'selected' : ''}>${esc(label)}</option>`;
+    }).join('');
+    return `<optgroup label="Kapitel ${esc(kap)}">${opts}</optgroup>`;
+  }).join('');
+
   view.innerHTML = `
     <div class="frist-edit-form">
       <div class="drawer-grid">
@@ -693,18 +732,19 @@ function editAbrufVerwaltung() {
           <input type="text" id="aSachbearbeiterEdit" value="${esc(a.sachbearbeiter || '')}" placeholder="Name / Stelle">
         </div>
         <div class="field">
-          <label class="field-label">Titel (Haushaltsmittel)</label>
-          <input type="text" id="aTitelEdit" value="${esc(a.titel || '')}">
-        </div>
-        <div class="field">
-          <label class="field-label">Objektnummer</label>
-          <input type="text" id="aObjektnummerEdit" value="${esc(a.objektnummer || '')}">
+          <label class="field-label">Haushaltstitel</label>
+          <select id="aHaushaltstitelEdit">
+            <option value="">— Wählen —</option>
+            ${optionsHtml}
+          </select>
+          <div style="color:var(--text3);font-size:9px;margin-top:3px">💡 Maus über einen Eintrag halten zeigt die Erläuterung</div>
         </div>
         <div class="field">
           <label class="field-label">Auftragswert (€)</label>
           <input type="number" id="aAuftragswertEdit" min="0" step="0.01" value="${a.auftragswert ?? ''}">
         </div>
       </div>
+      ${!htListe.length ? '<div style="color:var(--text3);font-size:10px;margin-bottom:8px">Noch keine Haushaltstitel angelegt — siehe Einstellungen.</div>' : ''}
       <div style="display:flex;gap:8px;margin-top:8px">
         <button class="btn btn-primary" onclick="saveAbrufVerwaltung()">✓ Speichern</button>
         <button class="btn" onclick="openAbrufDrawer('${a.id}')">✕ Abbrechen</button>
@@ -718,8 +758,7 @@ function saveAbrufVerwaltung() {
   if (!a) return;
 
   a.sachbearbeiter = document.getElementById('aSachbearbeiterEdit').value.trim() || null;
-  a.titel = document.getElementById('aTitelEdit').value.trim() || null;
-  a.objektnummer = document.getElementById('aObjektnummerEdit').value.trim() || null;
+  a.haushaltstitelId = document.getElementById('aHaushaltstitelEdit').value || null;
   const wertRaw = parseFloat(document.getElementById('aAuftragswertEdit').value);
   a.auftragswert = isNaN(wertRaw) ? null : wertRaw;
   a.letzteAktivitaet = today();
@@ -755,6 +794,42 @@ function saveAbrufVermerk() {
   if (!a) return;
 
   a.abrufvermerk = document.getElementById('aVermerkEdit').value.trim() || null;
+  a.letzteAktivitaet = today();
+
+  saveDataAbrufe();
+  openAbrufDrawer(drawerAbrufId);
+}
+
+// ─── Abgerufene Positionen bearbeiten ───
+// Freitext (eine Position pro Zeile), da Format je nach Rahmenvertrag/
+// Leistungsverzeichnis variiert (Pos.-Nr, Menge, Einheit, Bezeichnung).
+// Bewusst kein Zeilen-Editor mit Einzelfeldern — analog zur Entscheidung
+// bei den Teilrechnungen: Ziel ist Nachvollziehbarkeit, keine Kalkulation.
+function editAbrufPositionen() {
+  const a = window.abrufe.find(x => x.id === drawerAbrufId);
+  if (!a) return;
+
+  const view = document.getElementById('aPositionenView');
+  if (!view || view.querySelector('.frist-edit-form')) return;
+
+  view.innerHTML = `
+    <div class="frist-edit-form">
+      <div class="field">
+        <textarea id="aPositionenEdit" style="min-height:100px;font-family:var(--mono);font-size:11px" placeholder="Pos. 3.1.20     10 Std. Servicetechniker&#10;Pos. 3.1.150   1 Stck. An-/Abfahrtspauschale…">${esc(a.positionen || '')}</textarea>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" onclick="saveAbrufPositionen()">✓ Speichern</button>
+        <button class="btn" onclick="openAbrufDrawer('${a.id}')">✕ Abbrechen</button>
+      </div>
+    </div>
+  `;
+}
+
+function saveAbrufPositionen() {
+  const a = window.abrufe.find(x => x.id === drawerAbrufId);
+  if (!a) return;
+
+  a.positionen = document.getElementById('aPositionenEdit').value.trim() || null;
   a.letzteAktivitaet = today();
 
   saveDataAbrufe();
@@ -1055,6 +1130,9 @@ window.editAbrufVerwaltung = editAbrufVerwaltung;
 window.saveAbrufVerwaltung = saveAbrufVerwaltung;
 window.editAbrufVermerk = editAbrufVermerk;
 window.saveAbrufVermerk = saveAbrufVermerk;
+window.editAbrufPositionen = editAbrufPositionen;
+window.saveAbrufPositionen = saveAbrufPositionen;
+window.getHaushaltstitel = getHaushaltstitel;
 window.changeAbrufStatus = changeAbrufStatus;
 window.addAbrufTeilrechnung = addAbrufTeilrechnung;
 window.addAbrufLog = addAbrufLog;
