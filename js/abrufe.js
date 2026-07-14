@@ -416,11 +416,61 @@ function saveNewAbruf() {
   saveDataAbrufe();
   closeNewAbrufModal();
   renderAbrufeRegister();
+  // Drawer direkt öffnen — Positionen/Abrufvermerk/Verwaltungsdaten werden
+  // typischerweise im selben Arbeitsgang ergänzt (siehe Praxisbeispiel:
+  // die komplette Abruf-Mail entsteht in einem Zug).
+  openAbrufDrawer(newAbruf.id);
 }
 
 // ═══════════════════════════════════════════════
 // VERTRAGSABRUF DETAIL DRAWER
 // ═══════════════════════════════════════════════
+// ═══════════════════════════════════════════════
+// EXPORT FÜR BÜROSACHBEARBEITER (Zwischenablage)
+// Erzeugt den Textblock im Format @/#/>/Begründung aus den
+// vorhandenen Feldern, damit er direkt in eine E-Mail eingefügt
+// werden kann. Begrüßung/Anrede/Signatur bewusst nicht generiert
+// (Namen/Ansprechpartner variieren) — nur der aus den Daten
+// ableitbare Teil wird automatisiert.
+// ═══════════════════════════════════════════════
+function buildAbrufExportText(a) {
+  const rv = getRahmenvertrag(a.rahmenvertragId);
+  const firma = rv ? rv.vertragsnehmer : '(Rahmenvertrag fehlt)';
+
+  const lines = [];
+  lines.push(`@${firma} :: ${a.bedarf || ''}`);
+  lines.push(`# ${a.liegenschaft || '—'} - ${a.anlage || '—'}`);
+
+  const posLines = (a.positionen || '').split('\n').map(l => l.trim()).filter(Boolean);
+  posLines.forEach(l => {
+    lines.push(`> ${l.replace(/^>+\s*/, '')}`);
+  });
+
+  lines.push('');
+  lines.push(`Begründung: ${a.abrufvermerk || ''}`);
+
+  return lines.join('\n');
+}
+
+async function copyAbrufForSB() {
+  const a = window.abrufe.find(x => x.id === drawerAbrufId);
+  if (!a) return;
+  const text = buildAbrufExportText(a);
+  const btn = document.getElementById('aCopyBtn');
+
+  try {
+    await navigator.clipboard.writeText(text);
+    if (btn) {
+      const original = btn.textContent;
+      btn.textContent = '✓ Kopiert';
+      setTimeout(() => { if (btn) btn.textContent = original; }, 1600);
+    }
+  } catch (e) {
+    console.error('Zwischenablage nicht erreichbar:', e);
+    alert('Kopieren in die Zwischenablage hat nicht funktioniert. Text zum manuellen Kopieren:\n\n' + text);
+  }
+}
+
 function openAbrufDrawer(abrufId) {
   drawerAbrufId = abrufId;
   const a = window.abrufe.find(x => x.id === abrufId);
@@ -490,7 +540,15 @@ function openAbrufDrawer(abrufId) {
     htHtml = '—';
   }
 
+  const exportText = buildAbrufExportText(a);
+
   document.getElementById('aDrawerBody').innerHTML = `
+    <div class="drawer-section">
+      <div class="drawer-section-title">Für Bürosachbearbeiter <span style="color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">(Text zum Einfügen in die E-Mail)</span></div>
+      <div class="va-positionen-view" style="background:var(--el-2);border:1px solid var(--line2);border-radius:4px;padding:10px 12px">${esc(exportText)}</div>
+      <button class="btn btn-primary" id="aCopyBtn" style="margin-top:8px" onclick="copyAbrufForSB()">📋 In Zwischenablage kopieren</button>
+    </div>
+
     <div class="drawer-section">
       <div class="drawer-section-title">Dringlichkeit</div>
       <div class="register-frist register-frist-${d.klasse}" style="display:inline-block;font-size:12px;padding:4px 10px;border-radius:4px">${esc(d.label)}</div>
@@ -1123,6 +1181,8 @@ window.closeNewAbrufModal = closeNewAbrufModal;
 window.closeAbrufModalIfBg = closeAbrufModalIfBg;
 window.saveNewAbruf = saveNewAbruf;
 window.openAbrufDrawer = openAbrufDrawer;
+window.buildAbrufExportText = buildAbrufExportText;
+window.copyAbrufForSB = copyAbrufForSB;
 window.closeAbrufDrawer = closeAbrufDrawer;
 window.editAbrufTermin = editAbrufTermin;
 window.saveAbrufTermin = saveAbrufTermin;
