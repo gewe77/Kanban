@@ -13,7 +13,16 @@
 // Global state
 window.vorgaenge = [];
 let drawerVorgangId = null;
-let showErledigte = JSON.parse(localStorage.getItem('register_show_erledigt') || 'false');
+let showErledigte = false;
+try {
+  showErledigte = JSON.parse(localStorage.getItem('register_show_erledigt') || 'false');
+} catch (e) {
+  // localStorage kann in seltenen Fällen nicht verfügbar sein (z.B. beim
+  // Öffnen der Datei direkt vom Dateisystem statt über einen Server).
+  // Ohne dieses try/catch würde ein Fehler hier das gesamte Skript
+  // abbrechen und alle Register-Funktionen (Neuer Vorgang etc.) lahmlegen.
+  console.warn('localStorage nicht verfügbar — Anzeige-Einstellung wird nicht gespeichert:', e.message);
+}
 
 // Anlagen/Liegenschaften kommen aus den Stammdaten (einstellungen.js)
 
@@ -47,36 +56,69 @@ const WIP_LIMIT_AKTIV = 3;
 // FIRESTORE (Vorgänge DB)
 // ═══════════════════════════════════════════════
 async function loadVorgaengeFromFirestore() {
+  setSyncStatus('syncing');
   try {
     const { getDocs } = window._fbFns;
     const snap = await getDocs(window._fbCol_vorgaenge());
-    window.vorgaenge = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const remote = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    if (remote.length === 0) {
+      // WICHTIG: Eine leere Firestore-Antwort niemals blind übernehmen —
+      // das würde lokal vorhandene Vorgänge (z.B. aus einer Zeit mit
+      // Auth-Problemen) unwiderruflich löschen. Lokale Daten haben Vorrang
+      // und werden bei Bedarf nach Firestore nachgezogen.
+      const local = loadLocalDataVorgaenge();
+      if (local.length > 0) {
+        window.vorgaenge = local;
+        local.forEach(v => saveVorgangToFirestore(v));
+        console.warn('Vorgänge: lokale Daten gefunden, die noch nicht in Firestore lagen — werden jetzt hochgeladen.');
+      } else {
+        window.vorgaenge = [];
+      }
+    } else {
+      window.vorgaenge = remote;
+    }
+
     saveLocalVorgaenge();
     renderRegister();
+    setSyncStatus('synced');
   } catch (e) {
     console.error('Firestore Vorgänge laden:', e);
     window.vorgaenge = loadLocalDataVorgaenge();
     renderRegister();
+    setSyncStatus('error');
   }
 }
 
 async function saveVorgangToFirestore(v) {
-  if (!window._currentUser) return;
+  if (!window._currentUser) {
+    setSyncStatus('offline');
+    return;
+  }
+  setSyncStatus('syncing');
   try {
     const { setDoc, doc } = window._fbFns;
     await setDoc(doc(window._db_vorgaenge, 'vorgaenge', v.id), v);
+    setSyncStatus('synced');
   } catch (e) {
     console.error('Firestore Vorgang speichern:', e);
+    setSyncStatus('error');
   }
 }
 
 async function deleteVorgangFromFirestore(id) {
-  if (!window._currentUser) return;
+  if (!window._currentUser) {
+    setSyncStatus('offline');
+    return;
+  }
+  setSyncStatus('syncing');
   try {
     const { deleteDoc, doc } = window._fbFns;
     await deleteDoc(doc(window._db_vorgaenge, 'vorgaenge', id));
+    setSyncStatus('synced');
   } catch (e) {
     console.error('Firestore Vorgang löschen:', e);
+    setSyncStatus('error');
   }
 }
 
@@ -291,7 +333,11 @@ function setupRegisterFilters() {
     toggle.checked = showErledigte;
     toggle.addEventListener('change', () => {
       showErledigte = toggle.checked;
-      localStorage.setItem('register_show_erledigt', JSON.stringify(showErledigte));
+      try {
+        localStorage.setItem('register_show_erledigt', JSON.stringify(showErledigte));
+      } catch (e) {
+        console.warn('localStorage nicht verfügbar:', e.message);
+      }
       renderRegister();
     });
   }

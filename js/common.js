@@ -62,16 +62,17 @@ function saveLocalVorgaenge() {
   localStorage.setItem('betrieb_vorgaenge_v1', JSON.stringify(window.vorgaenge || []));
 }
 
-// ── Sync-Status UI ──
+// ── DB-Verbindungsstatus UI (Header) ──
 function setSyncStatus(state) {
-  const dot = document.getElementById('syncDot');
-  const txt = document.getElementById('syncText');
+  const dot = document.getElementById('dbStatusDot');
+  const txt = document.getElementById('dbStatusText');
   if (!dot) return;
-  dot.className = 'sync-dot ' + state;
+  dot.className = 'db-status-dot ' + state;
   txt.textContent = {
-    synced: 'Firestore sync',
-    syncing: 'Speichern…',
-    error: 'Sync-Fehler'
+    synced:  'Firestore verbunden',
+    syncing: 'Speichert…',
+    error:   'Sync-Fehler',
+    offline: 'Nicht angemeldet'
   }[state] || 'Lokal';
 }
 
@@ -86,7 +87,7 @@ function updateAuthUI() {
   } else {
     btn.textContent = '○ Anmelden';
     btn.className = 'btn btn-auth-off';
-    setSyncStatus('');
+    setSyncStatus('offline');
   }
 }
 

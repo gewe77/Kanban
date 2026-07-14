@@ -68,6 +68,7 @@ onAuthStateChanged(auth, user => {
     if (typeof loadVorgaengeFromFirestore === 'function') loadVorgaengeFromFirestore();
     if (typeof loadStammdatenFromFirestore === 'function') loadStammdatenFromFirestore();
   } else {
+    if (typeof setSyncStatus === 'function') setSyncStatus('offline');
     window.vorgaenge = loadLocalDataVorgaenge();
     if (typeof loadLocalStammdaten === 'function') {
       window.stammdaten = loadLocalStammdaten();

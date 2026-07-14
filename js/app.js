@@ -30,7 +30,7 @@ function switchTab(tabName) {
     if (typeof renderEinstellungenTab === 'function') renderEinstellungenTab();
   }
 
-  localStorage.setItem('activeTab', tabName);
+  try { localStorage.setItem('activeTab', tabName); } catch (e) { /* ignorieren */ }
 }
 
 // ═══════════════════════════════════════════════
@@ -87,7 +87,8 @@ function init() {
   if (typeof refreshDropdowns === 'function') refreshDropdowns();
 
   // Restore last active tab (default: vorgaenge)
-  const lastTab = localStorage.getItem('activeTab') || 'vorgaenge';
+  let lastTab = 'vorgaenge';
+  try { lastTab = localStorage.getItem('activeTab') || 'vorgaenge'; } catch (e) { /* ignorieren */ }
   switchTab(lastTab);
 
   console.log(`✓ Vorgänge: ${window.vorgaenge.length} Vorgänge`);

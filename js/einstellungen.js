@@ -55,39 +55,59 @@ window.stammdaten = {
 // FIRESTORE: STAMMDATEN
 // ═══════════════════════════════════════════════
 async function loadStammdatenFromFirestore() {
+  setSyncStatus('syncing');
   try {
     const { getDocs } = window._fbFns;
     const { collection } = await import('https://www.gstatic.com/firebasejs/11.0.0/firebase-firestore.js');
-    
+
     const types = ['liegenschaften', 'anlagen', 'kategorien', 'verantwortliche'];
+    const localBackup = loadLocalStammdaten();
     let anyLoaded = false;
-    
+
     for (const type of types) {
       const snap = await getDocs(collection(window._db_vorgaenge, `stammdaten_${type}`));
       const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      
+
       if (items.length > 0) {
         window.stammdaten[type] = items.sort((a, b) => (a.sort ?? 99) - (b.sort ?? 99));
         anyLoaded = true;
       } else {
-        window.stammdaten[type] = JSON.parse(JSON.stringify(DEFAULT_STAMMDATEN[type]));
+        // WICHTIG: Firestore ist für diesen Typ leer — das kann bedeuten,
+        // dass wirklich noch nichts angelegt wurde, ODER dass frühere
+        // Speicherversuche (z.B. wegen eines Auth-Fehlers) nie ankamen.
+        // Lokale, von den Defaults abweichende Daten NIEMALS blind
+        // überschreiben — stattdessen als Quelle nehmen und nach
+        // Firestore nachziehen.
+        const localItems = localBackup[type];
+        const localIstAbweichend = Array.isArray(localItems) && localItems.length > 0 &&
+          JSON.stringify(localItems) !== JSON.stringify(DEFAULT_STAMMDATEN[type]);
+
+        if (localIstAbweichend) {
+          window.stammdaten[type] = localItems;
+          localItems.forEach(item => saveStammdatumToFirestore(type, item));
+          console.warn(`Stammdaten (${type}): lokale Daten gefunden, die noch nicht in Firestore lagen — werden jetzt hochgeladen.`);
+        } else {
+          window.stammdaten[type] = JSON.parse(JSON.stringify(DEFAULT_STAMMDATEN[type]));
+        }
       }
     }
-    
+
     // Migration: Anlagen ohne liegenschaftId der ersten Liegenschaft zuordnen
     migrateAnlagenLiegenschaft();
-    
+
     saveLocalStammdaten();
     refreshDropdowns();
-    
+    setSyncStatus('synced');
+
     if (!anyLoaded) {
-      console.log('Keine Stammdaten in Firestore — Defaults werden verwendet.');
+      console.log('Keine Stammdaten in Firestore gefunden (oder gerade nachgezogen) — Defaults als letzter Fallback.');
     }
   } catch (e) {
     console.error('Stammdaten laden fehlgeschlagen:', e);
     window.stammdaten = loadLocalStammdaten();
     migrateAnlagenLiegenschaft();
     refreshDropdowns();
+    setSyncStatus('error');
   }
 }
 
@@ -112,22 +132,34 @@ function migrateAnlagenLiegenschaft() {
 }
 
 async function saveStammdatumToFirestore(type, item) {
-  if (!window._currentUser) return;
+  if (!window._currentUser) {
+    setSyncStatus('offline');
+    return;
+  }
+  setSyncStatus('syncing');
   try {
     const { setDoc, doc } = window._fbFns;
     await setDoc(doc(window._db_vorgaenge, `stammdaten_${type}`, item.id), item);
+    setSyncStatus('synced');
   } catch (e) {
     console.error(`Stammdatum (${type}) speichern fehlgeschlagen:`, e);
+    setSyncStatus('error');
   }
 }
 
 async function deleteStammdatumFromFirestore(type, id) {
-  if (!window._currentUser) return;
+  if (!window._currentUser) {
+    setSyncStatus('offline');
+    return;
+  }
+  setSyncStatus('syncing');
   try {
     const { deleteDoc, doc } = window._fbFns;
     await deleteDoc(doc(window._db_vorgaenge, `stammdaten_${type}`, id));
+    setSyncStatus('synced');
   } catch (e) {
     console.error(`Stammdatum (${type}) löschen fehlgeschlagen:`, e);
+    setSyncStatus('error');
   }
 }
 
