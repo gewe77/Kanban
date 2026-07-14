@@ -104,6 +104,14 @@ header {
   text-transform: uppercase;
 }
 .logo span { color: var(--amber-light); }
+.app-version {
+  color: var(--text3) !important;
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0.05em;
+  margin-left: 4px;
+  text-transform: none;
+}
 .header-right { display: flex; align-items: center; gap: 8px; }
 
 .wip-status {
