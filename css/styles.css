@@ -2100,6 +2100,14 @@ btn, button { font-family: var(--sans); cursor: pointer; }
   margin-bottom: 8px;
 }
 
+.va-positionen-view {
+  white-space: pre-wrap;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--text);
+}
+
 @media (max-width: 768px) {
   .register-side { max-width: 130px; }
 }
