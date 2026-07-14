@@ -3,7 +3,6 @@
 Web-App für Betriebsingenieure mit:
 - 📋 **Vorgangsregister** — eine einzige, nach Dringlichkeit sortierte Liste (kein Board, keine Ordner). Jeder Vorgang trägt Frist + Puffer + automatisch berechnete Wiedervorlage und bewegt sich von selbst nach oben, sobald sein Termin näher rückt
 - ⚙️ **Einstellungen** — Stammdaten-Verwaltung (Liegenschaften, Anlagen, Kategorien, Verantwortliche)
-- 📧 **Mail-Capture** — E-Mails als Vorgänge erfassen (manuell, mit Smart-Parser)
 
 > **Hinweis:** Das frühere Kanban-Board sowie die Heute-/Aktiv-Ansichten wurden entfernt.
 > Sie hatten sich in der Praxis nicht bewährt (Übertrag aus Outlook unzuverlässig,
@@ -24,18 +23,18 @@ kanban-betrieb/
     ├── common.js           # Utilities (Datum, Escape, LocalStorage)
     ├── register.js         # Vorgangsregister: Dringlichkeit, Drawer, Schritte, Log
     ├── einstellungen.js    # Stammdaten-Verwaltung
-    ├── mail-capture.js     # Mail-Quick-Capture + Smart-Parser
     └── app.js              # Tab-Switching, Init, Keyboard
 ```
 
 ## Firebase-Setup
 
-Zwei Firebase-Projekte, aber nur eines mit Daten:
+Ein Projekt für alles: `betrieb-vorgaenge` (Firestore: `vorgaenge`, `stammdaten_*` — und Authentication für die Google-Anmeldung).
 
-| Projekt | Zweck |
-|---------|-------|
-| `betrieb-vorgaenge` | Firestore (`vorgaenge`, `stammdaten_*`) — die einzige Datenquelle |
-| `kanban-betrieb` | **Nur noch für die Google-Anmeldung.** Enthält keine genutzten Daten mehr, aber nur hier ist Firebase Authentication eingerichtet. Kann **nicht** einfach gelöscht werden, ohne vorher Authentication in `betrieb-vorgaenge` selbst einzurichten (siehe Kommentar in `firebase-config.js`). |
+Voraussetzung (einmalig in der Firebase-Konsole): Authentication → Sign-in method →
+Google aktiviert, Authorized domain `gewe77.github.io` eingetragen.
+
+Das frühere zweite Projekt `kanban-betrieb` wird nicht mehr benötigt (weder für
+Daten noch für Auth) und kann in der Firebase-Konsole gelöscht werden.
 
 ## Dringlichkeits-Logik (Kernstück des Registers)
 
@@ -95,50 +94,6 @@ Analog zum Kanban-Board:
 - Neue Schritte am Ende anhängen
 - Der erste offene Schritt wird als "Nächster Schritt" angezeigt
 
-## Mail-Capture Workflow
-
-### Wie es funktioniert
-
-1. **In Outlook:** E-Mail öffnen, Body markieren (Strg+A), kopieren (Strg+C)
-2. **In PWA:** Vorgänge-Tab → Button "📧 Aus Mail"
-3. **Modal öffnet sich:**
-   - Mail-Text einfügen (Strg+V oder "Aus Zwischenablage einfügen")
-   - Betreff manuell eintippen
-   - Absender optional
-4. **"Analysieren →"** klicken
-5. **Smart-Parser** erkennt automatisch:
-   - Anlage (aus Stammdaten)
-   - Kategorie (aus Keywords)
-   - Priorität (A bei "DRINGEND", etc.)
-   - Frist (Datumsmuster, "bis Freitag")
-   - Verantwortlich (extern bei Mail-Adresse)
-6. **Duplikat-Check:**
-   - Ähnlicher Vorgang → Update-Dialog
-   - Sonst → Neuer-Vorgang-Modal vorausgefüllt
-
-### Smart-Parser Muster
-
-| Feld | Erkennt |
-|------|---------|
-| Prio A | dringend, eilt, kritisch, sofort, ASAP, urgent |
-| Prio B | zeitnah, bald, diese woche, baldmöglichst |
-| Störung | störung, defekt, fehler, ausfall, kaputt |
-| Wartung | wartung, inspektion, prüfung, service |
-| Vergabe | angebot, vergabe, auftrag, ausschreibung |
-| Datum | 15.06.2026, "bis Freitag", "nächste Woche" |
-
-### Duplikat-Erkennung
-
-| Signal | Score |
-|--------|-------|
-| Vorgangs-Nr im Betreff | 100% |
-| Identischer Betreff | 90% |
-| 60%+ Wort-Überlappung | 42-70% |
-| Gleiche Anlage | +15 |
-| Wartet auf Antwort dieses Absenders | +20 |
-
-Treffer ab 50% → Update-Vorschlag.
-
 ## Keyboard-Shortcuts
 
 | Taste | Funktion |
@@ -152,7 +107,8 @@ Treffer ab 50% → Update-Vorschlag.
 - [x] Phase 2: Multi-File-Architektur
 - [x] Phase 2b: Vorgangsmanagement (Heute/Aktiv/Register) — *abgelöst*
 - [x] Phase 2c: Einstellungen (Stammdaten via Firestore)
-- [x] Phase 2d: Mail-Capture (Quick-Capture + Smart-Parser)
+- [x] Phase 2d: Mail-Capture (Quick-Capture + Smart-Parser) — *in v11 entfernt*
 - [x] Phase 2e: Vorgangsregister mit Dringlichkeits-Logik, Puffer/Wiedervorlage, Soft-WIP-Limit
+- [x] v11: Bereinigung — Mail-Capture entfernt, Projekt auf reines Vorgangsregister reduziert
 - [ ] Phase 3: Wartungsmanagement (eigene Firestore-Instanz)
 - [ ] Phase 4: Betriebsstatistik (Dashboard)
