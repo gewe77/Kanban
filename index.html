@@ -29,7 +29,7 @@
      HEADER MIT TAB-NAVIGATION
 ═══════════════════════════════════════════════ -->
 <header>
-  <div class="logo">BETRIEB <span>&amp;</span> FÜHRUNG</div>
+  <div class="logo">BETRIEB <span>&amp;</span> FÜHRUNG <span class="app-version" id="appVersion" title="App-Version"></span></div>
   
   <nav class="nav-tabs">
     <button class="nav-tab active" data-tab="vorgaenge">▤ Vorgangsregister</button>
@@ -254,9 +254,13 @@
         <label class="field-label">Vertragsnehmer <span class="req">*</span></label>
         <input type="text" id="sVertragsnehmer" placeholder="z.B. SES">
       </div>
-      <div class="field" id="sRvNummerField" style="display:none">
-        <label class="field-label">Rahmenvertragsnummer <span class="req">*</span></label>
-        <input type="text" id="sRvNummer" placeholder="z.B. RV-2024-0007">
+      <div class="field" id="sRvNummerVergabestelleField" style="display:none">
+        <label class="field-label">Vertragsnummer Vergabestelle <span class="req">*</span></label>
+        <input type="text" id="sRvNummerVergabestelle" placeholder="z.B. RV-2024-0007">
+      </div>
+      <div class="field" id="sRvNummerEAkteField" style="display:none">
+        <label class="field-label">Vertragsnummer E-Akte (optional)</label>
+        <input type="text" id="sRvNummerEAkte" placeholder="z.B. E-2024-1234">
       </div>
       <div class="field-row2" id="sLaufzeitField" style="display:none">
         <div class="field">
