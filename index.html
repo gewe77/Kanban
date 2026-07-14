@@ -37,6 +37,9 @@
   </nav>
   
   <div class="header-right">
+    <span class="db-status" id="dbStatus" title="Verbindung zur Firestore-Datenbank">
+      <span class="db-status-dot" id="dbStatusDot"></span><span id="dbStatusText">Lokal</span>
+    </span>
     <button class="btn btn-auth-off" id="authBtn" onclick="handleAuth()">○ Anmelden</button>
     <button class="btn btn-mail-capture btn-vorgaenge-only" onclick="openQuickCaptureModal()">📧 Aus Mail</button>
     <button class="btn btn-primary btn-vorgaenge-only" onclick="openNewVorgangModal()">+ Neuer Vorgang</button>
@@ -48,10 +51,6 @@
 ═══════════════════════════════════════════════ -->
 <div class="datebar">
   <span class="datebar-item" id="datebarToday"></span>
-  <span style="color:var(--line2)">|</span>
-  <span class="datebar-item" id="datebarSync">
-    <span class="sync-dot" id="syncDot"></span><span id="syncText">Lokal</span>
-  </span>
   <span style="color:var(--line2)">|</span>
   <span class="datebar-item red"   id="datebarOverdue"></span>
   <span class="datebar-item amber" id="datebarDueSoon"></span>
