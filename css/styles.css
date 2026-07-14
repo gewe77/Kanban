@@ -1752,50 +1752,6 @@ btn, button { font-family: var(--sans); cursor: pointer; }
 ═══════════════════════════════════════════════ */
 
 /* Mail-Info im Dialog */
-.mail-capture-mail-info {
-  background: var(--blue-bg);
-  border: 1px solid rgba(56,104,160,0.25);
-  border-left: 3px solid var(--blue-light);
-  border-radius: 4px;
-  padding: 12px 14px;
-  margin-bottom: 16px;
-}
-
-.mail-capture-mail-label {
-  font-family: var(--mono);
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  color: var(--blue-light);
-  margin-bottom: 6px;
-}
-
-.mail-capture-mail-subject {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text);
-  margin-bottom: 4px;
-  line-height: 1.4;
-}
-
-.mail-capture-mail-from {
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--text2);
-}
-
-.mail-capture-section-title {
-  font-family: var(--mono);
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text2);
-  margin-bottom: 10px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid var(--line);
-}
-
 /* Duplikat-Liste */
 .mail-duplicate-list {
   max-height: 400px;
@@ -1896,124 +1852,7 @@ btn, button { font-family: var(--sans); cursor: pointer; }
 }
 
 /* Update-Vorgang Modal: erweitert */
-.uvg-section {
-  background: var(--el-3);
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  padding: 12px 14px;
-  margin-bottom: 14px;
-}
-
-.uvg-section-title {
-  font-family: var(--mono);
-  font-size: 9px;
-  font-weight: 500;
-  letter-spacing: 0.10em;
-  text-transform: uppercase;
-  color: var(--text3);
-  margin-bottom: 8px;
-}
-
-.uvg-current-info {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  font-size: 11px;
-}
-
-.uvg-current-info-item {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.uvg-current-info-label {
-  font-family: var(--mono);
-  font-size: 9px;
-  color: var(--text3);
-  letter-spacing: 0.04em;
-}
-
-.uvg-current-info-value {
-  color: var(--text);
-}
-
-.uvg-checkbox-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-}
-
-.uvg-checkbox-row input[type="checkbox"] {
-  width: 14px;
-  height: 14px;
-  accent-color: var(--amber);
-  cursor: pointer;
-}
-
-.uvg-checkbox-row label {
-  font-size: 11px;
-  color: var(--text2);
-  cursor: pointer;
-  user-select: none;
-}
-
-.uvg-conditional {
-  margin-left: 22px;
-  margin-bottom: 12px;
-}
-
-.uvg-conditional input,
-.uvg-conditional select {
-  width: 100%;
-  padding: 6px 10px;
-  background: var(--el-2);
-  border: 1px solid var(--line2);
-  border-radius: 3px;
-  color: var(--text);
-  font-family: var(--sans);
-  font-size: 11px;
-}
-
-.uvg-preview {
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--text2);
-  background: var(--el-2);
-  border: 1px solid var(--line);
-  border-radius: 3px;
-  padding: 6px 10px;
-  margin-left: 22px;
-  word-break: break-all;
-}
-
 /* Toast-Meldung */
-.capture-toast {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  background: var(--green-bg);
-  border: 1px solid var(--green-rim);
-  color: var(--green-light);
-  font-family: var(--sans);
-  font-size: 13px;
-  font-weight: 500;
-  padding: 10px 16px;
-  border-radius: 4px;
-  opacity: 0;
-  transform: translateY(20px);
-  transition: opacity 0.3s, transform 0.3s;
-  z-index: 9999;
-  pointer-events: none;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-}
-
-.capture-toast.show {
-  opacity: 1;
-  transform: translateY(0);
-}
-
 /* Mail-Historie im Vorgang-Drawer */
 .vorgang-mails {
   display: flex;
@@ -2067,53 +1906,7 @@ btn, button { font-family: var(--sans); cursor: pointer; }
    QUICK-CAPTURE MODAL
 ═══════════════════════════════════════════════ */
 
-.quick-capture-hint {
-  background: var(--blue-bg);
-  border: 1px solid rgba(56,104,160,0.30);
-  border-left: 3px solid var(--blue-light);
-  border-radius: 4px;
-  padding: 12px 14px;
-  margin-bottom: 16px;
-  display: flex;
-  gap: 12px;
-  font-size: 11px;
-  color: var(--text);
-  line-height: 1.6;
-}
-
-.quick-capture-hint-icon {
-  font-size: 18px;
-  flex-shrink: 0;
-}
-
-.quick-capture-hint kbd {
-  background: var(--el-1);
-  border: 1px solid var(--line2);
-  color: var(--blue-light);
-  border-radius: 2px;
-  padding: 1px 5px;
-  font-family: var(--mono);
-  font-size: 10px;
-  font-weight: 500;
-}
-
-.quick-capture-hint strong {
-  color: var(--blue-light);
-}
-
 /* Header-Button "Aus Mail" */
-.btn-mail-capture {
-  background: linear-gradient(135deg, var(--blue-bg), rgba(56,104,160,0.20));
-  border: 1px solid rgba(56,104,160,0.40);
-  color: var(--blue-light);
-}
-
-.btn-mail-capture:hover {
-  background: rgba(56,104,160,0.25);
-  border-color: var(--blue-light);
-  color: var(--text);
-}
-
 /* ═══════════════════════════════════════════════
    V8: LIEGENSCHAFTEN-GRUPPIERUNG + VORGANG-SCHRITTE
 ═══════════════════════════════════════════════ */
