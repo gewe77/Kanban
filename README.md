@@ -185,6 +185,21 @@ Freitext-Werte (`titel`/`objektnummer`) und werden im Drawer weiterhin
 angezeigt (mit Hinweis "alt erfasst") — keine automatische Migration, um
 keine Annahmen über eine passende Zuordnung zu treffen.
 
+## Bedienung: Eingabemasken
+
+- **Kein Schließen durch versehentlichen Klick außerhalb**: Die Modale
+  ("Neuer Vorgang", "Neuer Vertragsabruf", Stammdatum-Modal) schließen sich
+  nur noch über ✕/Abbrechen oder Escape — ein Klick auf den abgedunkelten
+  Hintergrund tut nichts mehr. Vermeidet Datenverlust bei bereits
+  ausgefüllten Feldern.
+- **Schnellanlage fehlender Stammdaten**: Kleiner "+"-Button neben
+  Liegenschaft/Anlage/Kategorie/Verantwortlich (Vorgang) bzw.
+  Rahmenvertrag/Liegenschaft/Anlage/Bedarfsersteller (Vertragsabruf) öffnet
+  das Stammdatum-Modal, ohne die gerade ausgefüllte Eingabemaske zu
+  verlieren — die Maske wird nur versteckt (Werte bleiben erhalten) und
+  kehrt nach dem Speichern zurück, mit dem neuen Eintrag direkt
+  vorausgewählt.
+
 ## Keyboard-Shortcuts
 
 | Taste | Funktion |

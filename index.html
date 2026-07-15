@@ -255,7 +255,7 @@
 <!-- ═══════════════════════════════════════════════
      STAMMDATUM MODAL
 ═══════════════════════════════════════════════ -->
-<div class="modal-overlay" id="stammdatumModalOverlay" onclick="closeStammdatumModalIfBg(event)">
+<div class="modal-overlay" id="stammdatumModalOverlay">
   <div class="modal">
     <div class="modal-head">
       <span class="modal-title" id="stammdatumModalTitle">Neues Stammdatum</span>
@@ -327,7 +327,7 @@
 <!-- ═══════════════════════════════════════════════
      VORGÄNGE: NEUER VORGANG MODAL
 ═══════════════════════════════════════════════ -->
-<div class="modal-overlay" id="vorgangModalOverlay" onclick="closeVorgangModalIfBg(event)">
+<div class="modal-overlay" id="vorgangModalOverlay">
   <div class="modal">
     <div class="modal-head">
       <span class="modal-title">Neuer Vorgang</span>
@@ -338,23 +338,32 @@
       <div class="field-row2">
         <div class="field">
           <label class="field-label">Liegenschaft <span class="req">*</span></label>
-          <select id="vLiegenschaft" onchange="onLiegenschaftChange()">
-            <option value="">— Wählen —</option>
-          </select>
+          <div class="field-with-add">
+            <select id="vLiegenschaft" onchange="onLiegenschaftChange()">
+              <option value="">— Wählen —</option>
+            </select>
+            <button type="button" class="btn-quickadd" onclick="quickAddStammdatum('liegenschaften','vorgangModalOverlay','vLiegenschaft')" title="Neue Liegenschaft anlegen">+</button>
+          </div>
         </div>
         <div class="field">
           <label class="field-label">Anlage <span class="req">*</span></label>
-          <select id="vAnlage" onchange="onAnlageChange()">
-            <option value="">— Wählen —</option>
-          </select>
+          <div class="field-with-add">
+            <select id="vAnlage" onchange="onAnlageChange()">
+              <option value="">— Wählen —</option>
+            </select>
+            <button type="button" class="btn-quickadd" onclick="quickAddStammdatum('anlagen','vorgangModalOverlay','vAnlage')" title="Neue Anlage anlegen">+</button>
+          </div>
         </div>
       </div>
       
       <div class="field">
         <label class="field-label">Kategorie <span class="req">*</span></label>
-        <select id="vKategorie">
-          <option value="">— Wählen —</option>
-        </select>
+        <div class="field-with-add">
+          <select id="vKategorie">
+            <option value="">— Wählen —</option>
+          </select>
+          <button type="button" class="btn-quickadd" onclick="quickAddStammdatum('kategorien','vorgangModalOverlay','vKategorie')" title="Neue Kategorie anlegen">+</button>
+        </div>
       </div>
       
       <div class="field">
@@ -373,9 +382,12 @@
         </div>
         <div class="field">
           <label class="field-label">Verantwortlich <span class="req">*</span></label>
-          <select id="vVerantwortlich">
-            <option value="">— Wählen —</option>
-          </select>
+          <div class="field-with-add">
+            <select id="vVerantwortlich">
+              <option value="">— Wählen —</option>
+            </select>
+            <button type="button" class="btn-quickadd" onclick="quickAddStammdatum('verantwortliche','vorgangModalOverlay','vVerantwortlich')" title="Neue/n Verantwortliche/n anlegen">+</button>
+          </div>
         </div>
       </div>
       
@@ -431,7 +443,7 @@
 <!-- ═══════════════════════════════════════════════
      VERTRAGSABRUFE: NEUER ABRUF MODAL
 ═══════════════════════════════════════════════ -->
-<div class="modal-overlay" id="abrufModalOverlay" onclick="closeAbrufModalIfBg(event)">
+<div class="modal-overlay" id="abrufModalOverlay">
   <div class="modal">
     <div class="modal-head">
       <span class="modal-title">Neuer Vertragsabruf</span>
@@ -441,23 +453,32 @@
 
       <div class="field">
         <label class="field-label">Rahmenvertrag <span class="req">*</span></label>
-        <select id="aRahmenvertrag">
-          <option value="">— Wählen —</option>
-        </select>
+        <div class="field-with-add">
+          <select id="aRahmenvertrag">
+            <option value="">— Wählen —</option>
+          </select>
+          <button type="button" class="btn-quickadd" onclick="quickAddStammdatum('rahmenvertraege','abrufModalOverlay','aRahmenvertrag')" title="Neuen Rahmenvertrag anlegen">+</button>
+        </div>
       </div>
 
       <div class="field-row2">
         <div class="field">
           <label class="field-label">Liegenschaft <span class="req">*</span></label>
-          <select id="aLiegenschaft" onchange="onAbrufLiegenschaftChange()">
-            <option value="">— Wählen —</option>
-          </select>
+          <div class="field-with-add">
+            <select id="aLiegenschaft" onchange="onAbrufLiegenschaftChange()">
+              <option value="">— Wählen —</option>
+            </select>
+            <button type="button" class="btn-quickadd" onclick="quickAddStammdatum('liegenschaften','abrufModalOverlay','aLiegenschaft')" title="Neue Liegenschaft anlegen">+</button>
+          </div>
         </div>
         <div class="field">
           <label class="field-label">Anlage <span class="req">*</span></label>
-          <select id="aAnlage" onchange="onAbrufAnlageChange()">
-            <option value="">— Wählen —</option>
-          </select>
+          <div class="field-with-add">
+            <select id="aAnlage" onchange="onAbrufAnlageChange()">
+              <option value="">— Wählen —</option>
+            </select>
+            <button type="button" class="btn-quickadd" onclick="quickAddStammdatum('anlagen','abrufModalOverlay','aAnlage')" title="Neue Anlage anlegen">+</button>
+          </div>
         </div>
       </div>
 
@@ -468,9 +489,12 @@
 
       <div class="field">
         <label class="field-label">Bedarfsersteller <span class="req">*</span></label>
-        <select id="aBedarfsersteller">
-          <option value="">— Wählen —</option>
-        </select>
+        <div class="field-with-add">
+          <select id="aBedarfsersteller">
+            <option value="">— Wählen —</option>
+          </select>
+          <button type="button" class="btn-quickadd" onclick="quickAddStammdatum('verantwortliche','abrufModalOverlay','aBedarfsersteller')" title="Neue/n Bedarfsersteller/in anlegen">+</button>
+        </div>
       </div>
 
       <div class="field-row2">
