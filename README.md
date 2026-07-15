@@ -153,8 +153,21 @@ Anlegen, sondern ein eigener editierbarer Bereich im Drawer.
 ### Rahmenverträge (Stammdaten)
 
 Neue Stammdaten-Kategorie in den Einstellungen: Vertragsnehmer (z.B. "SES"),
-Rahmenvertragsnummer, Laufzeit von/bis. Wird im "Neuer Vertragsabruf"-Modal
-sowie im Register/Drawer referenziert (`rahmenvertragId`).
+**zwei Vertragsnummern** (Vergabestelle und E-Akte — jeder Rahmenvertrag hat
+beide), Laufzeit von/bis. Vergabestelle-Nummer ist Pflichtfeld (wird im
+Register/Dropdown als Kurzform angezeigt), E-Akte-Nummer optional (nur in
+Drawer/Einstellungen sichtbar, wo mehr Platz ist). Referenziert über
+`rahmenvertragId`. Ältere Einträge mit nur einer Nummer (`rvNummer`) werden
+weiterhin als Vergabestelle-Nummer angezeigt (Legacy-Fallback).
+
+### Versionsanzeige
+
+Im Header steht neben dem Logo immer die aktuelle Version (`window.APP_VERSION`
+in `js/app.js`). Schema: `vXX` für größere Ausbaustufen (i.d.R. komplettes
+ZIP), `vXX.NNN` für fortlaufende Änderungen an einzelnen Dateien seit der
+letzten `vXX`-Stufe. Wird von Claude bei jeder Auslieferung manuell
+hochgezählt — kein automatischer Build-Mechanismus, da reines Datei-Deployment
+ohne Build-Schritt.
 
 ### Haushaltstitel (Stammdaten)
 

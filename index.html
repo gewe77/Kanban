@@ -34,7 +34,6 @@
   <nav class="nav-tabs">
     <button class="nav-tab active" data-tab="vorgaenge">▤ Vorgangsregister</button>
     <button class="nav-tab" data-tab="abrufe">📑 Vertragsabrufe</button>
-    <button class="nav-tab" data-tab="einstellungen">⚙ Einstellungen</button>
   </nav>
   
   <div class="header-right">
@@ -51,11 +50,14 @@
      DATEBAR
 ═══════════════════════════════════════════════ -->
 <div class="datebar">
-  <span class="datebar-item" id="datebarToday"></span>
-  <span style="color:var(--line2)">|</span>
-  <span class="datebar-item red"   id="datebarOverdue"></span>
-  <span class="datebar-item amber" id="datebarDueSoon"></span>
-  <span class="datebar-item"       id="datebarWaiting"></span>
+  <div class="datebar-left">
+    <span class="datebar-item" id="datebarToday"></span>
+    <span style="color:var(--line2)">|</span>
+    <span class="datebar-item red"   id="datebarOverdue"></span>
+    <span class="datebar-item amber" id="datebarDueSoon"></span>
+    <span class="datebar-item"       id="datebarWaiting"></span>
+  </div>
+  <button class="nav-tab nav-tab-mini" data-tab="einstellungen">⚙ Einstellungen</button>
 </div>
 
 <!-- ═══════════════════════════════════════════════
@@ -146,10 +148,13 @@
     </div>
 
     <!-- Liegenschaften -->
-    <div class="stammdaten-section">
-      <div class="stammdaten-section-header">
+    <div class="stammdaten-section collapsed">
+      <div class="stammdaten-section-header" onclick="toggleStammdatenSection(this)">
         <div class="stammdaten-section-title">📍 Liegenschaften</div>
-        <div class="stammdaten-section-meta">Oberste Ebene</div>
+        <div class="stammdaten-section-header-right">
+          <span class="stammdaten-section-meta">Oberste Ebene · <span id="liegenschaftenCount">0</span></span>
+          <span class="stammdaten-toggle-arrow">▾</span>
+        </div>
       </div>
       <div class="stammdaten-list" id="liegenschaftenList">
         <!-- Dynamisch gefüllt -->
@@ -160,10 +165,13 @@
     </div>
 
     <!-- Anlagen -->
-    <div class="stammdaten-section">
-      <div class="stammdaten-section-header">
+    <div class="stammdaten-section collapsed">
+      <div class="stammdaten-section-header" onclick="toggleStammdatenSection(this)">
         <div class="stammdaten-section-title">📦 Anlagen</div>
-        <div class="stammdaten-section-meta">Je Liegenschaft zugeordnet</div>
+        <div class="stammdaten-section-header-right">
+          <span class="stammdaten-section-meta">Je Liegenschaft zugeordnet · <span id="anlagenCount">0</span></span>
+          <span class="stammdaten-toggle-arrow">▾</span>
+        </div>
       </div>
       <div class="stammdaten-list" id="anlagenList">
         <!-- Dynamisch gefüllt -->
@@ -174,10 +182,13 @@
     </div>
 
     <!-- Rahmenverträge -->
-    <div class="stammdaten-section">
-      <div class="stammdaten-section-header">
+    <div class="stammdaten-section collapsed">
+      <div class="stammdaten-section-header" onclick="toggleStammdatenSection(this)">
         <div class="stammdaten-section-title">📑 Rahmenverträge</div>
-        <div class="stammdaten-section-meta">Für Vertragsabrufe</div>
+        <div class="stammdaten-section-header-right">
+          <span class="stammdaten-section-meta">Für Vertragsabrufe · <span id="rahmenvertraegeCount">0</span></span>
+          <span class="stammdaten-toggle-arrow">▾</span>
+        </div>
       </div>
       <div class="stammdaten-list" id="rahmenvertraegeList">
         <!-- Dynamisch gefüllt -->
@@ -188,10 +199,13 @@
     </div>
 
     <!-- Haushaltstitel -->
-    <div class="stammdaten-section">
-      <div class="stammdaten-section-header">
+    <div class="stammdaten-section collapsed">
+      <div class="stammdaten-section-header" onclick="toggleStammdatenSection(this)">
         <div class="stammdaten-section-title">💶 Haushaltstitel</div>
-        <div class="stammdaten-section-meta">Titel / Objektnummer für Vertragsabrufe</div>
+        <div class="stammdaten-section-header-right">
+          <span class="stammdaten-section-meta">Titel / Objektnummer für Vertragsabrufe · <span id="haushaltstitelCount">0</span></span>
+          <span class="stammdaten-toggle-arrow">▾</span>
+        </div>
       </div>
       <div class="stammdaten-list" id="haushaltstitelList">
         <!-- Dynamisch gefüllt -->
@@ -202,10 +216,13 @@
     </div>
 
     <!-- Kategorien -->
-    <div class="stammdaten-section">
-      <div class="stammdaten-section-header">
+    <div class="stammdaten-section collapsed">
+      <div class="stammdaten-section-header" onclick="toggleStammdatenSection(this)">
         <div class="stammdaten-section-title">🏷️ Kategorien</div>
-        <div class="stammdaten-section-meta">Vorgangs-Typ</div>
+        <div class="stammdaten-section-header-right">
+          <span class="stammdaten-section-meta">Vorgangs-Typ · <span id="kategorienCount">0</span></span>
+          <span class="stammdaten-toggle-arrow">▾</span>
+        </div>
       </div>
       <div class="stammdaten-list" id="kategorienList">
         <!-- Dynamisch gefüllt -->
@@ -216,10 +233,13 @@
     </div>
 
     <!-- Verantwortliche -->
-    <div class="stammdaten-section">
-      <div class="stammdaten-section-header">
+    <div class="stammdaten-section collapsed">
+      <div class="stammdaten-section-header" onclick="toggleStammdatenSection(this)">
         <div class="stammdaten-section-title">👤 Verantwortliche</div>
-        <div class="stammdaten-section-meta">Personen / Stellen</div>
+        <div class="stammdaten-section-header-right">
+          <span class="stammdaten-section-meta">Personen / Stellen · <span id="verantwortlicheCount">0</span></span>
+          <span class="stammdaten-toggle-arrow">▾</span>
+        </div>
       </div>
       <div class="stammdaten-list" id="verantwortlicheList">
         <!-- Dynamisch gefüllt -->
