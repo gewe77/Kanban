@@ -272,6 +272,7 @@ function renderHaushaltstitelSection() {
   if (!container) return;
 
   const items = window.stammdaten.haushaltstitel || [];
+  updateStammdatenCount('haushaltstitelList', items.length);
 
   if (!items.length) {
     container.innerHTML = '<div class="stammdaten-empty">Noch keine Haushaltstitel.</div>';
@@ -316,6 +317,7 @@ function renderRahmenvertraegeSection() {
   if (!container) return;
 
   const items = window.stammdaten.rahmenvertraege || [];
+  updateStammdatenCount('rahmenvertraegeList', items.length);
 
   if (!items.length) {
     container.innerHTML = '<div class="stammdaten-empty">Noch keine Rahmenverträge.</div>';
@@ -348,11 +350,27 @@ function renderRahmenvertraegeSection() {
 }
 
 // Liegenschaften: einfache Liste
+// ═══════════════════════════════════════════════
+// EIN-/AUSKLAPPEN DER STAMMDATEN-SEKTIONEN
+// ═══════════════════════════════════════════════
+function toggleStammdatenSection(headerEl) {
+  const section = headerEl.closest('.stammdaten-section');
+  if (section) section.classList.toggle('collapsed');
+}
+
+// Zähler im (ggf. eingeklappten) Sektionskopf aktualisieren —
+// Konvention: Container-ID "xyzList" -> Zähler-Element "xyzCount"
+function updateStammdatenCount(containerId, n) {
+  const el = document.getElementById(containerId.replace('List', 'Count'));
+  if (el) el.textContent = n;
+}
+
 function renderLiegenschaftenSection() {
   const container = document.getElementById('liegenschaftenList');
   if (!container) return;
   
   const items = window.stammdaten.liegenschaften || [];
+  updateStammdatenCount('liegenschaftenList', items.length);
   
   if (!items.length) {
     container.innerHTML = '<div class="stammdaten-empty">Noch keine Liegenschaften.</div>';
@@ -382,6 +400,7 @@ function renderAnlagenSection() {
   
   const liegenschaften = window.stammdaten.liegenschaften || [];
   const anlagen = window.stammdaten.anlagen || [];
+  updateStammdatenCount('anlagenList', anlagen.length);
   
   if (!anlagen.length) {
     container.innerHTML = '<div class="stammdaten-empty">Noch keine Anlagen.</div>';
@@ -435,6 +454,7 @@ function renderStammdatenSection(type, containerId, hasDescription) {
   if (!container) return;
   
   const items = window.stammdaten[type] || [];
+  updateStammdatenCount(containerId, items.length);
   
   if (!items.length) {
     container.innerHTML = '<div class="stammdaten-empty">Noch keine Einträge.</div>';
@@ -902,6 +922,7 @@ window.getAnlagenForLiegenschaft = getAnlagenForLiegenschaft;
 window.loadLocalStammdaten = loadLocalStammdaten;
 window.saveLocalStammdaten = saveLocalStammdaten;
 window.renderRahmenvertraegeSection = renderRahmenvertraegeSection;
+window.toggleStammdatenSection = toggleStammdatenSection;
 window.updateAbrufAnlagenDropdown = updateAbrufAnlagenDropdown;
 window.onAbrufLiegenschaftChange = onAbrufLiegenschaftChange;
 window.onAbrufAnlageChange = onAbrufAnlageChange;
