@@ -7,7 +7,7 @@
 // Schema: vXX = größere Ausbaustufe (i.d.R. komplettes ZIP),
 //         vXX.NNN = fortlaufende Nummer für Änderungen an einzelnen
 //         Dateien seit der letzten vXX-Stufe. Wird im Header angezeigt.
-window.APP_VERSION = 'v14.003';
+window.APP_VERSION = 'v14.004';
 
 let activeTab = 'vorgaenge';
 
@@ -54,6 +54,7 @@ function setupKeyboard() {
       if (typeof closeVorgangDrawer === 'function') closeVorgangDrawer();
       if (typeof closeNewAbrufModal === 'function') closeNewAbrufModal();
       if (typeof closeAbrufDrawer === 'function') closeAbrufDrawer();
+      if (typeof closeStammdatumModal === 'function') closeStammdatumModal();
     }
 
     // 'n': Neuer Vorgang / Neuer Vertragsabruf (je nach aktivem Tab)

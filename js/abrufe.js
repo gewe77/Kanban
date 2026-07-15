@@ -363,10 +363,6 @@ function closeNewAbrufModal() {
   document.getElementById('abrufModalOverlay').classList.remove('open');
 }
 
-function closeAbrufModalIfBg(e) {
-  if (e.target === document.getElementById('abrufModalOverlay')) closeNewAbrufModal();
-}
-
 function saveNewAbruf() {
   const bedarf = document.getElementById('aBedarf').value.trim();
   const rahmenvertragId = document.getElementById('aRahmenvertrag').value;
@@ -1182,7 +1178,6 @@ window.renderAbrufeRegister = renderAbrufeRegister;
 window.setupAbrufeFilters = setupAbrufeFilters;
 window.openNewAbrufModal = openNewAbrufModal;
 window.closeNewAbrufModal = closeNewAbrufModal;
-window.closeAbrufModalIfBg = closeAbrufModalIfBg;
 window.saveNewAbruf = saveNewAbruf;
 window.openAbrufDrawer = openAbrufDrawer;
 window.buildAbrufExportText = buildAbrufExportText;

@@ -363,10 +363,6 @@ function closeNewVorgangModal() {
   document.getElementById('vorgangModalOverlay').classList.remove('open');
 }
 
-function closeVorgangModalIfBg(e) {
-  if (e.target === document.getElementById('vorgangModalOverlay')) closeNewVorgangModal();
-}
-
 function saveNewVorgang() {
   const thema = document.getElementById('vThema').value.trim();
   const liegenschaft = document.getElementById('vLiegenschaft').value;
@@ -930,7 +926,6 @@ window.loadVorgaengeFromFirestore = loadVorgaengeFromFirestore;
 window.renderRegister = renderRegister;
 window.openNewVorgangModal = openNewVorgangModal;
 window.closeNewVorgangModal = closeNewVorgangModal;
-window.closeVorgangModalIfBg = closeVorgangModalIfBg;
 window.saveNewVorgang = saveNewVorgang;
 window.openVorgangDrawer = openVorgangDrawer;
 window.closeVorgangDrawer = closeVorgangDrawer;

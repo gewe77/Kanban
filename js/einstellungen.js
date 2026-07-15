@@ -482,6 +482,30 @@ function renderStammdatenSection(type, containerId, hasDescription) {
 // ═══════════════════════════════════════════════
 let editingStammdatum = null;
 
+// ═══════════════════════════════════════════════
+// STAMMDATEN-SCHNELLANLAGE AUS EINER OFFENEN EINGABEMASKE
+// Löst folgendes Problem: Beim Anlegen eines Vorgangs/Vertragsabrufs
+// fehlt eine Liegenschaft/Anlage/Kategorie/Verantwortliche/r/Rahmen-
+// vertrag. Bisher musste die Eingabemaske geschlossen (= alle bereits
+// eingegebenen Daten verloren), das Stammdatum in Einstellungen
+// angelegt und die Eingabemaske komplett neu ausgefüllt werden.
+//
+// Jetzt: die "Neuer Vorgang/Abruf"-Maske wird nur versteckt (nicht
+// geschlossen/zurückgesetzt — alle Eingaben bleiben im DOM erhalten),
+// darüber öffnet sich das Stammdatum-Modal. Nach dem Speichern (oder
+// Abbrechen) kehrt die ursprüngliche Maske unverändert zurück, und ein
+// neu angelegter Eintrag wird im auslösenden Dropdown direkt
+// vorausgewählt (siehe closeStammdatumModal()).
+// ═══════════════════════════════════════════════
+let pendingQuickAdd = null;
+
+function quickAddStammdatum(type, parentOverlayId, targetSelectId) {
+  pendingQuickAdd = { parentOverlayId, targetSelectId, newItemId: null };
+  const parentOverlay = document.getElementById(parentOverlayId);
+  if (parentOverlay) parentOverlay.classList.remove('open');
+  openStammdatumModal(type);
+}
+
 function openStammdatumModal(type, id = null) {
   editingStammdatum = { type, id };
   
@@ -556,10 +580,25 @@ function openStammdatumModal(type, id = null) {
 function closeStammdatumModal() {
   document.getElementById('stammdatumModalOverlay').classList.remove('open');
   editingStammdatum = null;
-}
 
-function closeStammdatumModalIfBg(e) {
-  if (e.target === document.getElementById('stammdatumModalOverlay')) closeStammdatumModal();
+  // Falls das Modal aus einer offenen "Neuer Vorgang/Abruf"-Maske heraus
+  // per Schnellanlage geöffnet wurde: die Maske (mit allen bisherigen
+  // Eingaben, die nie zerstört wurden) wieder einblenden. Wurde ein neuer
+  // Stammdatum-Eintrag angelegt, direkt im auslösenden Dropdown auswählen.
+  if (pendingQuickAdd) {
+    const { parentOverlayId, targetSelectId, newItemId } = pendingQuickAdd;
+    pendingQuickAdd = null;
+    const parentOverlay = document.getElementById(parentOverlayId);
+    if (parentOverlay) parentOverlay.classList.add('open');
+    if (newItemId) {
+      const targetSelect = document.getElementById(targetSelectId);
+      if (targetSelect) {
+        targetSelect.value = newItemId;
+        // 'change' manuell auslösen, damit z.B. die Anlagen-Kaskade greift
+        targetSelect.dispatchEvent(new Event('change'));
+      }
+    }
+  }
 }
 
 function saveStammdatum() {
@@ -681,12 +720,16 @@ function saveStammdatum() {
     
     window.stammdaten[type].push(newItem);
     saveStammdatumToFirestore(type, newItem);
+
+    // Für Schnellanlage aus einer offenen Vorgangs-/Abruf-Maske: die neue
+    // ID merken, damit sie im auslösenden Dropdown vorausgewählt werden kann.
+    if (pendingQuickAdd) pendingQuickAdd.newItemId = newItem.id;
   }
   
   saveLocalStammdaten();
-  closeStammdatumModal();
   renderEinstellungenTab();
   refreshDropdowns();
+  closeStammdatumModal();
 }
 
 // ═══════════════════════════════════════════════
@@ -910,10 +953,10 @@ window.loadStammdatenFromFirestore = loadStammdatenFromFirestore;
 window.renderEinstellungenTab = renderEinstellungenTab;
 window.openStammdatumModal = openStammdatumModal;
 window.closeStammdatumModal = closeStammdatumModal;
-window.closeStammdatumModalIfBg = closeStammdatumModalIfBg;
 window.saveStammdatum = saveStammdatum;
 window.confirmDeleteStammdatum = confirmDeleteStammdatum;
 window.refreshDropdowns = refreshDropdowns;
+window.quickAddStammdatum = quickAddStammdatum;
 window.updateAnlagenDropdown = updateAnlagenDropdown;
 window.onLiegenschaftChange = onLiegenschaftChange;
 window.onAnlageChange = onAnlageChange;
