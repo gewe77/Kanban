@@ -352,6 +352,29 @@ btn, button { font-family: var(--sans); cursor: pointer; }
 .field select { cursor: pointer; }
 .field-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
+/* Dropdown + kleiner "+"-Button zur Schnellanlage fehlender Stammdaten
+   (Liegenschaft/Anlage/Kategorie/Verantwortliche/Rahmenvertrag),
+   ohne die gerade ausgefüllte Eingabemaske zu verlassen */
+.field-with-add { display: flex; gap: 6px; align-items: stretch; }
+.field-with-add select { flex: 1; min-width: 0; width: auto; }
+.btn-quickadd {
+  flex-shrink: 0;
+  width: 34px;
+  background: var(--el-3);
+  border: 1px solid var(--line2);
+  border-radius: 4px;
+  color: var(--text3);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.btn-quickadd:hover {
+  border-color: var(--amber-rim);
+  color: var(--amber-light);
+  background: var(--el-4);
+}
+
 /* ── Drawer ── */
 .drawer-overlay {
   display: none; position: fixed; inset: 0; z-index: 200;
