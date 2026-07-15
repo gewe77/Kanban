@@ -29,9 +29,9 @@
   --line3: rgba(255,255,255,0.16);
 
   /* Text — kein reines Weiß (Prinzip 2) */
-  --text:  rgba(232,229,220,0.90);  /* Primär */
-  --text2: rgba(195,192,183,0.60);  /* Sekundär */
-  --text3: rgba(155,152,144,0.38);  /* Tertiär / Platzhalter */
+  --text:  rgba(232,229,220,0.95);  /* Primär */
+  --text2: rgba(200,197,188,0.72);  /* Sekundär */
+  --text3: rgba(165,162,154,0.52);  /* Tertiär / Platzhalter */
 
   /* Akzente — entsättigt (Prinzip 3) */
   --amber:      #c07c10;
@@ -161,11 +161,12 @@ btn, button { font-family: var(--sans); cursor: pointer; }
   padding: 5px 24px;
   background: var(--el-1);
   border-bottom: 1px solid var(--line);
-  display: flex; align-items: center; gap: 16px;
+  display: flex; align-items: center; justify-content: space-between;
   font-family: var(--mono);
   font-size: 10px;
   color: var(--text3);
 }
+.datebar-left { display: flex; align-items: center; gap: 16px; }
 .datebar-item { display: flex; align-items: center; gap: 5px; }
 .datebar-item.red   { color: var(--red-light); }
 .datebar-item.amber { color: var(--amber-light); }
@@ -631,6 +632,24 @@ btn, button { font-family: var(--sans); cursor: pointer; }
 .nav-tab.active {
   color: var(--amber-light);
   border-bottom-color: var(--amber-light);
+}
+
+/* Kompakte Variante für die Datebar (Einstellungen-Button) */
+.nav-tab-mini {
+  padding: 3px 10px;
+  font-size: 9px;
+  border: 1px solid var(--line2);
+  border-radius: 3px;
+  margin-bottom: 0;
+}
+.nav-tab-mini:hover {
+  color: var(--text2);
+  border-color: var(--line3);
+}
+.nav-tab-mini.active {
+  color: var(--amber-light);
+  border-color: var(--amber-rim);
+  background: var(--amber-bg);
 }
 
 .tab-container {
@@ -1622,6 +1641,35 @@ btn, button { font-family: var(--sans); cursor: pointer; }
   display: flex;
   justify-content: space-between;
   align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.stammdaten-section-header:hover { background: var(--el-4); }
+
+.stammdaten-section-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.stammdaten-toggle-arrow {
+  font-size: 10px;
+  color: var(--text3);
+  transition: transform 0.15s;
+  display: inline-block;
+}
+
+/* Eingeklappt: Liste + "+ Neu"-Button ausblenden, Pfeil nach rechts drehen */
+.stammdaten-section.collapsed .stammdaten-list,
+.stammdaten-section.collapsed .stammdaten-section-add {
+  display: none;
+}
+.stammdaten-section.collapsed .stammdaten-section-header {
+  border-bottom: none;
+}
+.stammdaten-section.collapsed .stammdaten-toggle-arrow {
+  transform: rotate(-90deg);
 }
 
 .stammdaten-section-title {
