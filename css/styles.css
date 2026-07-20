@@ -303,7 +303,7 @@ btn, button { font-family: var(--sans); cursor: pointer; }
 
 /* ── Modal — Elevation über Board ── */
 .modal-overlay {
-  display: none; position: fixed; inset: 0; z-index: 200;
+  display: none; position: fixed; inset: 0; z-index: 250;
   background: rgba(10,12,16,0.75);
   backdrop-filter: blur(2px);
   align-items: center; justify-content: center; padding: 20px;
