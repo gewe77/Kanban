@@ -58,6 +58,9 @@
   --violet-bg:  rgba(104,72,160,0.12);
   --violet-rim: rgba(104,72,160,0.28);
 
+  --orange-light: #c06a2e;
+  --slate-light:  #6b7685;
+
   /* Spalten-Akzente — entsättigt, zurückhaltend */
   --c-eingang:  #3d6090;
   --c-jetzt:    #c07c10;
@@ -2149,9 +2152,10 @@ btn, button { font-family: var(--sans); cursor: pointer; }
    VERTRAGSABRUFE
    Phasen-Icon ersetzt den kleinen Dringlichkeits-
    Punkt aus dem Vorgangsregister — bewusst nur
-   3 Icon-Formen (Anforderung/Ausführung/Abschluss),
-   Farbe kommt 1:1 aus dem bestehenden
-   Dringlichkeits-Farbschema (register-frist-*).
+   3 Icon-Formen (Anforderung/Ausführung/Abschluss).
+   Farbe zeigt den STATUS (siehe va-status-* unten),
+   die Dringlichkeit bleibt eigenständig über das
+   register-frist-Label rechts in der Zeile sichtbar.
 ═══════════════════════════════════════ */
 .va-phase-icon {
   width: 20px;
@@ -2162,15 +2166,31 @@ btn, button { font-family: var(--sans); cursor: pointer; }
   justify-content: center;
   font-size: 13px;
   line-height: 1;
+  color: var(--status-color, var(--text3));
 }
 
-.va-phase-ueberfaellig { color: var(--red-light); }
-.va-phase-heute        { color: var(--blue-light); }
-.va-phase-neu          { color: var(--c-parken); }
-.va-phase-wartet       { color: var(--violet-light); }
-.va-phase-diese-woche  { color: var(--amber-light); }
-.va-phase-spaeter      { color: var(--text3); }
-.va-phase-erledigt     { color: var(--green-light); }
+/* Status und Dringlichkeit sind so zwei getrennte, klar
+   unterscheidbare Informationen statt einer doppelten. */
+.va-status-bedarf              { --status-color: var(--slate-light); }
+.va-status-in-abruferstellung  { --status-color: var(--blue-light); }
+.va-status-zur-zeichnung       { --status-color: var(--violet-light); }
+.va-status-versendet           { --status-color: var(--c-parken); }
+.va-status-terminiert          { --status-color: var(--amber-light); }
+.va-status-in-ausfuehrung      { --status-color: var(--orange-light); }
+.va-status-teilabschluss       { --status-color: var(--c-parken); }
+.va-status-abgeschlossen       { --status-color: var(--green-light); }
+.va-status-rechnung            { --status-color: var(--blue-light); }
+.va-status-bezahlt             { --status-color: var(--c-erledigt); }
+
+/* Kleiner Statuspunkt im Drawer, neben dem Status-Dropdown — nutzt
+   dieselbe --status-color wie das Register-Icon (konsistente Sprache). */
+.va-status-dot {
+  display: inline-block;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--status-color, var(--text3));
+  flex-shrink: 0;
+}
 
 .va-teilrechnung-info {
   font-family: var(--mono);
