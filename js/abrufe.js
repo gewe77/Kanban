@@ -280,7 +280,7 @@ function renderAbrufeRegister() {
 
     return `
       <div class="register-row" onclick="openAbrufDrawer('${a.id}')">
-        <div class="va-phase-icon va-phase-${d.klasse}" title="${esc(d.label)}">${getAbrufPhaseIcon(a)}</div>
+        <div class="va-phase-icon va-status-${a.status}" title="${esc(statusLabel)} · ${esc(d.label)}">${getAbrufPhaseIcon(a)}</div>
         <div class="register-main">
           <div class="register-title">${esc(a.abrufNr)} — ${esc(a.bedarf)}</div>
           <div class="register-sub">${esc(statusLabel)} · ${esc(rvLabel)} · ${esc(a.liegenschaft || '—')} / ${esc(a.anlage || '—')}</div>
@@ -473,6 +473,7 @@ function openAbrufDrawer(abrufId) {
   if (!a) return;
 
   const d = computeDringlichkeitAbruf(a);
+  const statusObj = VA_STATUS.find(s => s.id === a.status);
   const rv = getRahmenvertrag(a.rahmenvertragId);
 
   document.getElementById('aDrawerTitle').textContent = `${a.abrufNr} — ${a.bedarf}`;
@@ -677,10 +678,13 @@ function openAbrufDrawer(abrufId) {
 
     <div class="drawer-section">
       <div class="drawer-section-title">Status ändern</div>
-      <select id="aStatusChange" onchange="changeAbrufStatus('${a.id}', this.value)"
-        style="width:100%;background:var(--el-3);border:1px solid var(--line2);border-radius:4px;color:var(--text);font-family:var(--sans);font-size:12px;padding:8px 11px;outline:none">
-        ${VA_STATUS.map(s => `<option value="${s.id}" ${s.id === a.status ? 'selected' : ''}>${s.label}</option>`).join('')}
-      </select>
+      <div style="display:flex;align-items:center;gap:9px">
+        <span class="va-status-dot va-status-${a.status}" title="${esc(statusObj?.label || a.status)}"></span>
+        <select id="aStatusChange" onchange="changeAbrufStatus('${a.id}', this.value)"
+          style="flex:1;background:var(--el-3);border:1px solid var(--line2);border-radius:4px;color:var(--text);font-family:var(--sans);font-size:12px;padding:8px 11px;outline:none">
+          ${VA_STATUS.map(s => `<option value="${s.id}" ${s.id === a.status ? 'selected' : ''}>${s.label}</option>`).join('')}
+        </select>
+      </div>
     </div>
 
     <div class="drawer-section">
