@@ -500,7 +500,7 @@ let editingStammdatum = null;
 let pendingQuickAdd = null;
 
 function quickAddStammdatum(type, parentOverlayId, targetSelectId) {
-  pendingQuickAdd = { parentOverlayId, targetSelectId, newItemId: null };
+  pendingQuickAdd = { type, parentOverlayId, targetSelectId, newItemValue: null };
   const parentOverlay = document.getElementById(parentOverlayId);
   if (parentOverlay) parentOverlay.classList.remove('open');
   openStammdatumModal(type);
@@ -586,14 +586,21 @@ function closeStammdatumModal() {
   // Eingaben, die nie zerstört wurden) wieder einblenden. Wurde ein neuer
   // Stammdatum-Eintrag angelegt, direkt im auslösenden Dropdown auswählen.
   if (pendingQuickAdd) {
-    const { parentOverlayId, targetSelectId, newItemId } = pendingQuickAdd;
+    const { parentOverlayId, targetSelectId, newItemValue } = pendingQuickAdd;
     pendingQuickAdd = null;
     const parentOverlay = document.getElementById(parentOverlayId);
     if (parentOverlay) parentOverlay.classList.add('open');
-    if (newItemId) {
+    if (newItemValue) {
       const targetSelect = document.getElementById(targetSelectId);
       if (targetSelect) {
-        targetSelect.value = newItemId;
+        // Kaskadierende bzw. eigenständig befüllte Dropdowns vorsorglich
+        // auffrischen, bevor die Vorauswahl gesetzt wird — harmlos/no-op,
+        // falls das jeweilige Feld hier gar nicht existiert.
+        if (typeof updateAnlagenDropdown === 'function') updateAnlagenDropdown();
+        if (typeof updateAbrufAnlagenDropdown === 'function') updateAbrufAnlagenDropdown();
+        if (typeof refreshMetaDropdowns === 'function') refreshMetaDropdowns();
+
+        targetSelect.value = newItemValue;
         // 'change' manuell auslösen, damit z.B. die Anlagen-Kaskade greift
         targetSelect.dispatchEvent(new Event('change'));
       }
@@ -721,9 +728,14 @@ function saveStammdatum() {
     window.stammdaten[type].push(newItem);
     saveStammdatumToFirestore(type, newItem);
 
-    // Für Schnellanlage aus einer offenen Vorgangs-/Abruf-Maske: die neue
-    // ID merken, damit sie im auslösenden Dropdown vorausgewählt werden kann.
-    if (pendingQuickAdd) pendingQuickAdd.newItemId = newItem.id;
+    // Für Schnellanlage aus einer offenen Vorgangs-/Abruf-Maske: den Wert
+    // merken, mit dem der neue Eintrag im auslösenden Dropdown vorausgewählt
+    // wird. Liegenschaft/Anlage/Kategorie/Verantwortliche werden dort per
+    // Name ausgewählt (nicht per ID) — Rahmenvertrag/Haushaltstitel per ID.
+    if (pendingQuickAdd) {
+      const nameBasierteTypen = ['liegenschaften', 'anlagen', 'kategorien', 'verantwortliche'];
+      pendingQuickAdd.newItemValue = nameBasierteTypen.includes(type) ? newItem.name : newItem.id;
+    }
   }
   
   saveLocalStammdaten();

@@ -473,7 +473,6 @@ function openAbrufDrawer(abrufId) {
   if (!a) return;
 
   const d = computeDringlichkeitAbruf(a);
-  const statusObj = VA_STATUS.find(s => s.id === a.status);
   const rv = getRahmenvertrag(a.rahmenvertragId);
 
   document.getElementById('aDrawerTitle').textContent = `${a.abrufNr} — ${a.bedarf}`;
@@ -556,31 +555,50 @@ function openAbrufDrawer(abrufId) {
 
     <div class="drawer-section">
       <div class="drawer-section-title">Metadaten</div>
-      <div class="drawer-grid">
-        <div>
-          <div class="dfield-label">Abruf-Nr</div>
-          <div class="dfield-val">${esc(a.abrufNr)}</div>
+      <div id="aMetaView">
+        <div class="drawer-grid">
+          <div>
+            <div class="dfield-label">Abruf-Nr</div>
+            <div class="dfield-val">${esc(a.abrufNr)}</div>
+          </div>
+          <div>
+            <div class="dfield-label">Bedarf</div>
+            <div class="dfield-val">${esc(a.bedarf)}</div>
+          </div>
+          <div>
+            <div class="dfield-label">Rahmenvertrag</div>
+            <div class="dfield-val">${rvHtml}</div>
+          </div>
+          <div>
+            <div class="dfield-label">Liegenschaft</div>
+            <div class="dfield-val">${esc(a.liegenschaft || '—')}</div>
+          </div>
+          <div>
+            <div class="dfield-label">Anlage</div>
+            <div class="dfield-val"><strong>${esc(a.anlage || '—')}</strong></div>
+          </div>
+          <div>
+            <div class="dfield-label">Bedarfsersteller</div>
+            <div class="dfield-val">${esc(a.bedarfsersteller || '—')}</div>
+          </div>
         </div>
-        <div>
-          <div class="dfield-label">Rahmenvertrag</div>
-          <div class="dfield-val">${rvHtml}</div>
-        </div>
-        <div>
-          <div class="dfield-label">Liegenschaft</div>
-          <div class="dfield-val">${esc(a.liegenschaft || '—')}</div>
-        </div>
-        <div>
-          <div class="dfield-label">Anlage</div>
-          <div class="dfield-val"><strong>${esc(a.anlage || '—')}</strong></div>
-        </div>
-        <div>
-          <div class="dfield-label">Bedarfsersteller</div>
-          <div class="dfield-val">${esc(a.bedarfsersteller || '—')}</div>
-        </div>
-        <div>
-          <div class="dfield-label">Status</div>
-          <div class="dfield-val">${esc(statusObj?.label || a.status)}</div>
-        </div>
+        <button class="btn" style="margin-top:8px" onclick="editAbrufMetadaten()">Bearbeiten</button>
+      </div>
+    </div>
+
+    <div class="drawer-section">
+      <div class="drawer-section-title">Abgerufene Positionen <span style="color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">(aus dem Rahmenvertrag)</span></div>
+      <div id="aPositionenView">
+        <div class="va-positionen-view">${a.positionen ? esc(a.positionen) : '<span style="color:var(--text3);font-family:var(--sans)">— noch nicht erfasst —</span>'}</div>
+        <button class="btn" style="margin-top:8px" onclick="editAbrufPositionen()">Bearbeiten</button>
+      </div>
+    </div>
+
+    <div class="drawer-section">
+      <div class="drawer-section-title">Abrufvermerk <span style="color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">(haushaltsrechtliche Begründung)</span></div>
+      <div id="aVermerkView">
+        <div class="dfield-val">${a.abrufvermerk ? esc(a.abrufvermerk) : '<span style="color:var(--text3)">— noch nicht erfasst —</span>'}</div>
+        <button class="btn" style="margin-top:8px" onclick="editAbrufVermerk()">Bearbeiten</button>
       </div>
     </div>
 
@@ -602,22 +620,6 @@ function openAbrufDrawer(abrufId) {
           </div>
         </div>
         <button class="btn" style="margin-top:8px" onclick="editAbrufVerwaltung()">Bearbeiten</button>
-      </div>
-    </div>
-
-    <div class="drawer-section">
-      <div class="drawer-section-title">Abrufvermerk <span style="color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">(haushaltsrechtliche Begründung)</span></div>
-      <div id="aVermerkView">
-        <div class="dfield-val">${a.abrufvermerk ? esc(a.abrufvermerk) : '<span style="color:var(--text3)">— noch nicht erfasst —</span>'}</div>
-        <button class="btn" style="margin-top:8px" onclick="editAbrufVermerk()">Bearbeiten</button>
-      </div>
-    </div>
-
-    <div class="drawer-section">
-      <div class="drawer-section-title">Abgerufene Positionen <span style="color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">(aus dem Rahmenvertrag)</span></div>
-      <div id="aPositionenView">
-        <div class="va-positionen-view">${a.positionen ? esc(a.positionen) : '<span style="color:var(--text3);font-family:var(--sans)">— noch nicht erfasst —</span>'}</div>
-        <button class="btn" style="margin-top:8px" onclick="editAbrufPositionen()">Bearbeiten</button>
       </div>
     </div>
 
@@ -703,6 +705,190 @@ function closeAbrufDrawer() {
   document.getElementById('aDrawerOverlay').classList.remove('open');
   document.getElementById('aDrawer').classList.remove('open');
   drawerAbrufId = null;
+}
+
+// ─── Metadaten bearbeiten (Bedarf, Rahmenvertrag, Liegenschaft, Anlage,
+//     Bedarfsersteller) — alles außer der Abruf-Nr selbst, die als
+//     Identifikator unveränderlich bleibt. Status hat weiterhin sein
+//     eigenes, immer aktives Dropdown weiter unten (kein Bearbeiten-Modus
+//     nötig, da Statuswechsel der häufigste Vorgang ist). ───
+// Aktualisiert die vier Metadaten-Dropdowns in-place (falls das
+// Bearbeiten-Formular gerade offen ist), inkl. Erhalt der aktuellen
+// Auswahl. Eigenständig von editAbrufMetadaten() aufrufbar — u.a. nötig,
+// weil dessen eigener "schon offen"-Schutz eine erneute Vollausführung
+// nach einer Schnellanlage verhindern würde.
+function refreshMetaDropdowns() {
+  const a = window.abrufe.find(x => x.id === drawerAbrufId);
+  if (!a) return;
+
+  const rvSel = document.getElementById('aMetaRahmenvertrag');
+  if (rvSel) {
+    const current = rvSel.value;
+    rvSel.innerHTML = '<option value="">— Wählen —</option>' +
+      [...(window.stammdaten?.rahmenvertraege || [])].map(r => {
+        const vn = r.rvNummerVergabestelle || r.rvNummer || '—';
+        const label = r.rvNummerEAkte ? `${r.vertragsnehmer} — VN ${vn} · E-Akte ${r.rvNummerEAkte}` : `${r.vertragsnehmer} — VN ${vn}`;
+        return `<option value="${r.id}">${esc(label)}</option>`;
+      }).join('');
+    if (current) rvSel.value = current;
+  }
+
+  const lgSel = document.getElementById('aMetaLiegenschaft');
+  if (lgSel) {
+    const current = lgSel.value;
+    lgSel.innerHTML = '<option value="">— Wählen —</option>' +
+      (window.stammdaten?.liegenschaften || []).map(l => `<option value="${esc(l.name)}">${esc(l.name)}</option>`).join('');
+    if (current) lgSel.value = current;
+  }
+
+  updateMetaAnlagenDropdown();
+
+  const verSel = document.getElementById('aMetaBedarfsersteller');
+  if (verSel) {
+    const current = verSel.value;
+    verSel.innerHTML = '<option value="">— Wählen —</option>' +
+      (window.stammdaten?.verantwortliche || []).map(v => `<option value="${esc(v.name)}">${esc(v.name)}</option>`).join('');
+    if (current) verSel.value = current;
+  }
+}
+
+function editAbrufMetadaten() {
+  const a = window.abrufe.find(x => x.id === drawerAbrufId);
+  if (!a) return;
+
+  const view = document.getElementById('aMetaView');
+  if (!view || view.querySelector('.frist-edit-form')) return;
+
+  const rvOptions = [...(window.stammdaten?.rahmenvertraege || [])].map(r => {
+    const vn = r.rvNummerVergabestelle || r.rvNummer || '—';
+    const label = r.rvNummerEAkte ? `${r.vertragsnehmer} — VN ${vn} · E-Akte ${r.rvNummerEAkte}` : `${r.vertragsnehmer} — VN ${vn}`;
+    return `<option value="${r.id}" ${a.rahmenvertragId === r.id ? 'selected' : ''}>${esc(label)}</option>`;
+  }).join('');
+
+  const lgOptions = (window.stammdaten?.liegenschaften || []).map(l =>
+    `<option value="${esc(l.name)}" ${a.liegenschaft === l.name ? 'selected' : ''}>${esc(l.name)}</option>`
+  ).join('');
+
+  const verOptions = (window.stammdaten?.verantwortliche || []).map(v =>
+    `<option value="${esc(v.name)}" ${a.bedarfsersteller === v.name ? 'selected' : ''}>${esc(v.name)}</option>`
+  ).join('');
+
+  view.innerHTML = `
+    <div class="frist-edit-form">
+      <div class="dfield-label">Abruf-Nr (nicht änderbar)</div>
+      <div class="dfield-val" style="margin-bottom:10px">${esc(a.abrufNr)}</div>
+
+      <div class="field">
+        <label class="field-label">Bedarf</label>
+        <textarea id="aMetaBedarf">${esc(a.bedarf || '')}</textarea>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Rahmenvertrag</label>
+        <div class="field-with-add">
+          <select id="aMetaRahmenvertrag">
+            <option value="">— Wählen —</option>
+            ${rvOptions}
+          </select>
+          <button type="button" class="btn-quickadd" onclick="quickAddStammdatum('rahmenvertraege', null, 'aMetaRahmenvertrag')" title="Neuen Rahmenvertrag anlegen">+</button>
+        </div>
+      </div>
+
+      <div class="drawer-grid">
+        <div class="field">
+          <label class="field-label">Liegenschaft</label>
+          <div class="field-with-add">
+            <select id="aMetaLiegenschaft" onchange="onMetaLiegenschaftChange()">
+              <option value="">— Wählen —</option>
+              ${lgOptions}
+            </select>
+            <button type="button" class="btn-quickadd" onclick="quickAddStammdatum('liegenschaften', null, 'aMetaLiegenschaft')" title="Neue Liegenschaft anlegen">+</button>
+          </div>
+        </div>
+        <div class="field">
+          <label class="field-label">Anlage</label>
+          <div class="field-with-add">
+            <select id="aMetaAnlage" onchange="onMetaAnlageChange()">
+              <option value="">— Wählen —</option>
+            </select>
+            <button type="button" class="btn-quickadd" onclick="quickAddStammdatum('anlagen', null, 'aMetaAnlage')" title="Neue Anlage anlegen">+</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Bedarfsersteller</label>
+        <div class="field-with-add">
+          <select id="aMetaBedarfsersteller">
+            <option value="">— Wählen —</option>
+            ${verOptions}
+          </select>
+          <button type="button" class="btn-quickadd" onclick="quickAddStammdatum('verantwortliche', null, 'aMetaBedarfsersteller')" title="Neue/n Bedarfsersteller/in anlegen">+</button>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn btn-primary" onclick="saveAbrufMetadaten()">✓ Speichern</button>
+        <button class="btn" onclick="openAbrufDrawer('${a.id}')">✕ Abbrechen</button>
+      </div>
+    </div>
+  `;
+
+  updateMetaAnlagenDropdown(a.anlage);
+}
+
+function saveAbrufMetadaten() {
+  const a = window.abrufe.find(x => x.id === drawerAbrufId);
+  if (!a) return;
+
+  const bedarf = document.getElementById('aMetaBedarf').value.trim();
+  if (!bedarf) {
+    alert('Bedarf darf nicht leer sein.');
+    return;
+  }
+
+  a.bedarf = bedarf;
+  a.rahmenvertragId = document.getElementById('aMetaRahmenvertrag').value || null;
+  a.liegenschaft = document.getElementById('aMetaLiegenschaft').value || null;
+  a.anlage = document.getElementById('aMetaAnlage').value || null;
+  a.bedarfsersteller = document.getElementById('aMetaBedarfsersteller').value || null;
+  a.letzteAktivitaet = today();
+
+  saveDataAbrufe();
+  renderAbrufeRegister();
+  openAbrufDrawer(drawerAbrufId);
+}
+
+// Liegenschaft↔Anlage-Kaskade im Metadaten-Bearbeiten-Formular
+// (eigenständig von der Kaskade im "Neuer Vertragsabruf"-Modal, da
+// andere Feld-IDs — vermeidet Kollisionen zwischen den beiden Formularen).
+function updateMetaAnlagenDropdown(preselectAnlage) {
+  const lgSel = document.getElementById('aMetaLiegenschaft');
+  const anlageSel = document.getElementById('aMetaAnlage');
+  if (!anlageSel) return;
+
+  const selectedLg = lgSel ? lgSel.value : '';
+  const current = preselectAnlage ?? anlageSel.value;
+
+  const anlagen = selectedLg ? getAnlagenForLiegenschaft(selectedLg) : (window.stammdaten?.anlagen || []);
+
+  anlageSel.innerHTML = '<option value="">— Wählen —</option>' +
+    anlagen.map(a => `<option value="${esc(a.name)}" ${a.name === current ? 'selected' : ''}>${esc(a.name)}</option>`).join('');
+}
+
+function onMetaLiegenschaftChange() {
+  updateMetaAnlagenDropdown();
+}
+
+function onMetaAnlageChange() {
+  const anlageSel = document.getElementById('aMetaAnlage');
+  const lgSel = document.getElementById('aMetaLiegenschaft');
+  if (!anlageSel || !lgSel || !anlageSel.value) return;
+
+  const lg = getLiegenschaftForAnlage(anlageSel.value);
+  if (lg && lgSel.value !== lg.name) {
+    lgSel.value = lg.name;
+  }
 }
 
 // ─── Termin/Puffer/Wiedervorlage bearbeiten ───
@@ -1183,6 +1369,12 @@ window.openAbrufDrawer = openAbrufDrawer;
 window.buildAbrufExportText = buildAbrufExportText;
 window.copyAbrufForSB = copyAbrufForSB;
 window.closeAbrufDrawer = closeAbrufDrawer;
+window.editAbrufMetadaten = editAbrufMetadaten;
+window.saveAbrufMetadaten = saveAbrufMetadaten;
+window.updateMetaAnlagenDropdown = updateMetaAnlagenDropdown;
+window.onMetaLiegenschaftChange = onMetaLiegenschaftChange;
+window.onMetaAnlageChange = onMetaAnlageChange;
+window.refreshMetaDropdowns = refreshMetaDropdowns;
 window.editAbrufTermin = editAbrufTermin;
 window.saveAbrufTermin = saveAbrufTermin;
 window.editAbrufVerwaltung = editAbrufVerwaltung;

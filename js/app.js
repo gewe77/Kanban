@@ -7,7 +7,7 @@
 // Schema: vXX = größere Ausbaustufe (i.d.R. komplettes ZIP),
 //         vXX.NNN = fortlaufende Nummer für Änderungen an einzelnen
 //         Dateien seit der letzten vXX-Stufe. Wird im Header angezeigt.
-window.APP_VERSION = 'v14.004';
+window.APP_VERSION = 'v14.005';
 
 let activeTab = 'vorgaenge';
 
