@@ -117,8 +117,15 @@ unabhängig von `register.js` implementiert (siehe `js/abrufe.js`).
 
 ### Lebenszyklus (3 Phasen, 10 Status)
 
-Die Zeile im Register zeigt bewusst nur **3 Icon-Formen** (Farbe = Dringlichkeit,
-identisch zum Vorgangsregister), dahinter den konkreten Status als Text:
+Die Zeile im Register zeigt bewusst nur **3 Icon-Formen** (Anforderung 📝,
+Ausführung ⚙, Abschluss ✅/◐ bei Teilabschluss), dahinter den konkreten
+Status als Text. Die **Icon-Farbe zeigt den Status** (10 fest zugeordnete
+Farben, siehe `va-status-*` in `styles.css`) — bewusst getrennt von der
+Dringlichkeit, die weiterhin eigenständig über das Label rechts in der Zeile
+sichtbar bleibt (z.B. "fällig in 3d", rot bei überfällig). Damit ändert ein
+Statuswechsel jetzt sichtbar die Icon-Farbe, unabhängig davon, ob sich an der
+Dringlichkeit gerade etwas ändert. Derselbe Farbcode taucht im Drawer als
+kleiner Punkt neben dem Status-Dropdown wieder auf.
 
 | Phase | Icon | Status |
 |-------|------|--------|
