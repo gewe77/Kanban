@@ -150,6 +150,22 @@ Objektnummer und Auftragswert meist noch nicht bekannt — sie werden erst nach
 Übergabe an den Bürosachbearbeiter ergänzt. Deshalb kein Pflichtfeld beim
 Anlegen, sondern ein eigener editierbarer Bereich im Drawer.
 
+### Metadaten (editierbar bis auf Abruf-Nr)
+
+Bedarf, Rahmenvertrag, Liegenschaft, Anlage und Bedarfsersteller sind im
+Drawer nachträglich änderbar (Bearbeiten-Button, gleiches Muster wie
+Termin/Verwaltungsdaten/Abrufvermerk). Nur die Abruf-Nr selbst bleibt fix, da
+sie als Identifikator dient. Status hat weiterhin sein eigenes, immer aktives
+Dropdown (kein Bearbeiten-Modus nötig — Statuswechsel ist der häufigste
+Vorgang). Auch hier gibt's "+"-Schnellanlage-Buttons für fehlende Stammdaten.
+
+### Reihenfolge im Drawer
+
+Metadaten → Abgerufene Positionen → Abrufvermerk → Verwaltungsdaten → Termin
+& Wiedervorlage → Nächster Schritt → Schritte → ... — die inhaltlich
+zusammengehörenden "was/warum"-Abschnitte (Positionen, Begründung) stehen vor
+den eher administrativen Abschnitten (Verwaltungsdaten, Termine).
+
 ### Rahmenverträge (Stammdaten)
 
 Neue Stammdaten-Kategorie in den Einstellungen: Vertragsnehmer (z.B. "SES"),
