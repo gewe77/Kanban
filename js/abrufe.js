@@ -41,14 +41,17 @@ const VA_STATUS = [
 ];
 
 // Phasen-Icons — bewusst nur 3 Formen (+ Sonderfall Teilabschluss).
-// Die Farbe kommt nicht vom Icon selbst, sondern von der
-// Dringlichkeits-Klasse (siehe va-phase-* in styles.css).
-const VA_PHASE_ICON = { anforderung: '📝', ausfuehrung: '⚙', abschluss: '✅' };
+// WICHTIG: bewusst keine Emoji (📝/⚙️/✅) — Emoji werden von Browsern
+// über eigene Farb-Schriften gerendert und ignorieren die CSS-Farbe
+// komplett (der Statuswechsel hätte also nie sichtbar Farbe geändert).
+// ■/●/✓/◐ sind reine Unicode-Textzeichen und übernehmen zuverlässig
+// die Farbe aus --status-color (siehe va-status-* in styles.css).
+const VA_PHASE_ICON = { anforderung: '■', ausfuehrung: '●', abschluss: '✓' };
 
 function getAbrufPhaseIcon(a) {
   if (a.status === 'teilabschluss') return '◐';
   const s = VA_STATUS.find(x => x.id === a.status);
-  return VA_PHASE_ICON[s?.phase] || '📝';
+  return VA_PHASE_ICON[s?.phase] || '■';
 }
 
 // Standard-Pufferzeit für Vertragsabrufe (Tage vor dem Ausführungstermin)
@@ -162,6 +165,28 @@ function berechneWiedervorlageAbruf(termin, pufferTage, manuelleWiedervorlage) {
   return addDaysStrAbruf(termin, pufferTage ?? PUFFER_DEFAULT_VA);
 }
 
+// ─── Automatische Wiedervorlage ───
+// Hat ein aktiver Abruf weder Termin noch manuelle Wiedervorlage,
+// greift automatisch: letzte Aktivität + 3 Tage. Wird bewusst NICHT
+// in den Datensatz geschrieben, sondern bei jedem Rendern berechnet —
+// so verschiebt sich der Anker von selbst, sobald etwas passiert
+// (Statuswechsel, Log, Schritt), ohne Migrations-/Pflegeaufwand.
+const AUTO_WV_TAGE = 3;
+
+function addDaysAbruf(dateStr, days) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function effektiveWiedervorlageAbruf(a) {
+  if (a.wiedervorlage) return { datum: a.wiedervorlage, auto: false };
+  if (a.terminAusfuehrung || a.status === 'bezahlt') return { datum: null, auto: false };
+  const anker = a.letzteAktivitaet || today();
+  return { datum: addDaysAbruf(anker, AUTO_WV_TAGE), auto: true };
+}
+
 // ═══════════════════════════════════════════════
 // DRINGLICHKEIT
 // Wiederverwendet bewusst dieselben Klassen-Namen wie im
@@ -175,8 +200,9 @@ function computeDringlichkeitAbruf(a) {
   }
 
   const tageTermin = a.terminAusfuehrung ? daysUntil(a.terminAusfuehrung) : null;
-  const tageWv = a.wiedervorlage ? daysUntil(a.wiedervorlage) : null;
-  const frueheAnforderung = a.status === 'bedarf' || a.status === 'in-abruferstellung';
+  const wv = effektiveWiedervorlageAbruf(a);
+  const tageWv = wv.datum ? daysUntil(wv.datum) : null;
+  const autoSuffix = wv.auto ? ' (auto)' : '';
   const warteAufZeichnungVersand = a.status === 'zur-zeichnung' || a.status === 'versendet';
 
   // 1. Überfällig — Ausführungstermin in der Vergangenheit, Leistung
@@ -189,19 +215,26 @@ function computeDringlichkeitAbruf(a) {
   if (tageTermin === 0 || (tageWv !== null && tageWv <= 0)) {
     return {
       klasse: 'heute',
-      label: tageTermin === 0 ? 'Termin heute' : 'Wiedervorlage heute',
+      label: tageTermin === 0 ? 'Termin heute' : `Wiedervorlage heute${autoSuffix}`,
       rang: 1
     };
   }
 
-  // 3. Neu — Bedarf gemeldet, aber noch nicht an SB übergeben/in Erstellung
-  if (frueheAnforderung) {
+  // 3. Neu — Bedarf gemeldet, aber noch nicht an SB übergeben. Braucht
+  //    GWs eigene Aktion (Weitergabe) — bewusst NICHT zusammen mit
+  //    "in-abruferstellung", sonst entsteht der Widerspruch "wird schon
+  //    bearbeitet" (Status-Text) vs. "noch offen" (Dringlichkeits-Text).
+  if (a.status === 'bedarf') {
     return { klasse: 'neu', label: 'neu · Anforderung offen', rang: 1.5 };
   }
 
-  // 4. Wartet — zur Zeichnung / versendet, mit künftiger Wiedervorlage
+  // 4. Bei SB / wartet auf Zeichnung / versendet — Ball liegt gerade
+  //    nicht bei GW, sondern beim Bürosachbearbeiter bzw. der Firma.
+  if (a.status === 'in-abruferstellung') {
+    return { klasse: 'wartet', label: 'bei SB · wird erstellt', rang: 2 };
+  }
   if (warteAufZeichnungVersand && tageWv !== null && tageWv > 0) {
-    return { klasse: 'wartet', label: `Wiedervorlage in ${tageWv}d`, rang: 2 };
+    return { klasse: 'wartet', label: `Wiedervorlage in ${tageWv}d${autoSuffix}`, rang: 2 };
   }
 
   // 5. Diese Woche
@@ -209,7 +242,12 @@ function computeDringlichkeitAbruf(a) {
     return { klasse: 'diese-woche', label: `fällig in ${tageTermin}d`, rang: 3 };
   }
 
-  // 6. Später
+  // 6. Später — ohne Termin, aber mit laufender (Auto-)Wiedervorlage
+  //    wird deren Restzeit angezeigt statt des uninformativen
+  //    "kein Termin gesetzt".
+  if (!a.terminAusfuehrung && tageWv !== null && tageWv > 0) {
+    return { klasse: 'spaeter', label: `Wiedervorlage in ${tageWv}d${autoSuffix}`, rang: 4 };
+  }
   return {
     klasse: 'spaeter',
     label: a.terminAusfuehrung ? `fällig in ${tageTermin}d` : 'kein Termin gesetzt',
@@ -279,7 +317,7 @@ function renderAbrufeRegister() {
     const naechsterSchritt = schritte.length ? schritte[0] : (a.naechsterSchritt || '—');
 
     return `
-      <div class="register-row" onclick="openAbrufDrawer('${a.id}')">
+      <div class="register-row va-row va-status-${a.status}" onclick="openAbrufDrawer('${a.id}')">
         <div class="va-phase-icon va-status-${a.status}" title="${esc(statusLabel)} · ${esc(d.label)}">${getAbrufPhaseIcon(a)}</div>
         <div class="register-main">
           <div class="register-title">${esc(a.abrufNr)} — ${esc(a.bedarf)}</div>
@@ -287,7 +325,7 @@ function renderAbrufeRegister() {
         </div>
         <div class="register-side">
           <div class="register-next">${esc(naechsterSchritt)}</div>
-          <div class="register-frist register-frist-${d.klasse}">${esc(d.label)}</div>
+          <div class="register-frist register-frist-${d.klasse}">${esc(d.label)}${a.status !== 'bezahlt' ? `<button class="va-wv-btn" onclick="verlaengereAbrufWv(event,'${a.id}')" title="Wiedervorlage auf heute + ${AUTO_WV_TAGE} Tage setzen">+${AUTO_WV_TAGE}d</button>` : ''}</div>
         </div>
       </div>
     `;
@@ -638,7 +676,12 @@ function openAbrufDrawer(abrufId) {
           </div>
           <div>
             <div class="dfield-label">Wiedervorlage</div>
-            <div class="dfield-val">${a.wiedervorlage ? fmtLong(a.wiedervorlage) : '—'}</div>
+            <div class="dfield-val">${(() => {
+              const wvEff = effektiveWiedervorlageAbruf(a);
+              if (a.wiedervorlage) return fmtLong(a.wiedervorlage);
+              if (wvEff.auto && wvEff.datum) return `${fmtLong(wvEff.datum)} <span style="color:var(--text3)">(automatisch)</span>`;
+              return '—';
+            })()}</div>
           </div>
         </div>
         <button class="btn" style="margin-top:8px" onclick="editAbrufTermin()">Bearbeiten</button>
@@ -1101,6 +1144,25 @@ function changeAbrufStatus(id, newStatus) {
   openAbrufDrawer(id);
 }
 
+// ─── Wiedervorlage verlängern (Button in der Registerzeile) ───
+// Setzt bewusst auf HEUTE + 3 Tage (nicht bisherige WV + 3):
+// eine bereits überfällige Wiedervorlage bliebe sonst überfällig.
+function verlaengereAbrufWv(event, id) {
+  event.stopPropagation();
+  const a = window.abrufe.find(x => x.id === id);
+  if (!a) return;
+
+  const t = today();
+  a.wiedervorlage = addDaysAbruf(t, AUTO_WV_TAGE);
+  a.log = `${t}: Wiedervorlage verlängert → ${a.wiedervorlage}\n` + (a.log || '');
+  a.letzteAktivitaet = t;
+
+  saveDataAbrufe();
+  renderAbrufeRegister();
+  // Drawer nur aktualisieren, falls er für genau diesen Abruf offen ist
+  if (drawerAbrufId === id) openAbrufDrawer(id);
+}
+
 // ─── Teilrechnungen (bewusst schlank: Zähler + Log, keine Buchhaltung) ───
 function addAbrufTeilrechnung() {
   const input = document.getElementById('aTeilrechnungInput');
@@ -1389,6 +1451,7 @@ window.editAbrufPositionen = editAbrufPositionen;
 window.saveAbrufPositionen = saveAbrufPositionen;
 window.getHaushaltstitel = getHaushaltstitel;
 window.changeAbrufStatus = changeAbrufStatus;
+window.verlaengereAbrufWv = verlaengereAbrufWv;
 window.addAbrufTeilrechnung = addAbrufTeilrechnung;
 window.addAbrufLog = addAbrufLog;
 window.editAbrufLogEntry = editAbrufLogEntry;
