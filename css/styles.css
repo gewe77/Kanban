@@ -2164,7 +2164,8 @@ btn, button { font-family: var(--sans); cursor: pointer; }
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
+  font-size: 15px;
+  font-weight: 700;
   line-height: 1;
   color: var(--status-color, var(--text3));
 }
@@ -2190,6 +2191,46 @@ btn, button { font-family: var(--sans); cursor: pointer; }
   border-radius: 50%;
   background: var(--status-color, var(--text3));
   flex-shrink: 0;
+}
+
+/* Zeilen-Einfärbung nach Status (Vertragsabrufe):
+   linker Farbbalken + sehr leichte Hintergrund-Tönung in der
+   Statusfarbe. Nutzt dieselbe --status-color wie Icon/Dot —
+   die va-status-*-Klasse liegt dafür zusätzlich auf der Zeile.
+   color-mix: Chrome ab v111; ohne Support bleibt der Balken
+   als Fallback (Zeile dann neutral wie bisher). */
+.register-row.va-row {
+  border-left: 3px solid var(--status-color, transparent);
+  padding-left: 13px; /* 16px − 3px Balken → Inhalt bleibt bündig */
+}
+
+@supports (background: color-mix(in srgb, red 5%, transparent)) {
+  .register-row.va-row {
+    background: color-mix(in srgb, var(--status-color, transparent) 6%, transparent);
+  }
+  .register-row.va-row:hover {
+    background: color-mix(in srgb, var(--status-color, transparent) 11%, var(--el-3));
+  }
+}
+
+/* Wiedervorlage-Verlängern-Button in der Registerzeile */
+.va-wv-btn {
+  font-family: var(--mono);
+  font-size: 9px;
+  padding: 2px 6px;
+  margin-left: 6px;
+  background: var(--el-3);
+  border: 1px solid var(--line2);
+  border-radius: 3px;
+  color: var(--text2);
+  cursor: pointer;
+  vertical-align: middle;
+  transition: background 0.12s, color 0.12s;
+}
+.va-wv-btn:hover {
+  background: var(--el-2);
+  color: var(--text);
+  border-color: var(--text3);
 }
 
 .va-teilrechnung-info {
